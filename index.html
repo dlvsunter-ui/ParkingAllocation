@@ -44,7 +44,7 @@
       cursor: pointer;
     }
 
-    .container { padding: 16px; max-width: 500px; margin: 0 auto; width: 100%; flex: 1; }
+    .container { padding: 16px; max-width: 550px; margin: 0 auto; width: 100%; flex: 1; }
 
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #475569; }
@@ -109,6 +109,7 @@
       border-radius: 8px;
       margin-top: 20px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow-x: auto;
     }
 
     .history-card h3 {
@@ -123,13 +124,14 @@
     .history-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
     }
 
     .history-table th, .history-table td {
       padding: 8px 6px;
       text-align: left;
       border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
     }
 
     .history-table th {
@@ -138,7 +140,7 @@
       font-weight: 600;
     }
 
-    /* Modal Scanner & Chart View */
+    /* Page Views */
     .view-page { display: none; }
     .view-page.active { display: block; }
     
@@ -202,20 +204,21 @@
           </select>
         </div>
 
-        <!-- RIWAYAT 5 INPUT TERAKHIR -->
+        <!-- RIWAYAT 5 INPUT TERAKHIR SESUAI SHEET DATABASE -->
         <div class="history-card">
-          <h3>5 Input Terakhir</h3>
+          <h3>5 Input Terakhir (Spreadsheet)</h3>
           <table class="history-table">
             <thead>
               <tr>
                 <th>Frame</th>
-                <th>Dispatcher</th>
                 <th>Stall</th>
+                <th>Scan Time Real</th>
+                <th>Dispatcher</th>
               </tr>
             </thead>
             <tbody id="historyBody">
               <tr>
-                <td colspan="3" style="text-align: center; color: #94a3b8;">Belum ada data</td>
+                <td colspan="4" style="text-align: center; color: #94a3b8;">Memuat data...</td>
               </tr>
             </tbody>
           </table>
@@ -263,7 +266,7 @@
 
   <script>
     // === CONFIGURATION ===
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjsIcDQCfZs_7pCL3qxxC4bAR4CFaDYAZDgNiDrLo0_u_0YXmPkLSUAGNaDWqSVCg95w/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7WYIb_yUPat3O1psUAZP65b8Ni6u38nc4SdGrb9cgcDy8jCKD_63EVQs7ZymxE0TM/exec";
 
     let areaStallMap = {};
     let stallInfoMap = {};
@@ -285,12 +288,6 @@
         document.getElementById("dispatcher").value = savedDispatcher;
       }
 
-      const savedHistory = localStorage.getItem("parking_history");
-      if (savedHistory) {
-        recentHistory = JSON.parse(savedHistory);
-        renderHistory();
-      }
-
       fetchMasterData();
 
       const now = new Date();
@@ -310,7 +307,10 @@
             stallInfoMap = data.stallInfoMap;
             stallOccupancy = data.stallOccupancy;
             existingFrames = data.existingFrames;
+            recentHistory = data.recentHistory || [];
+            
             populateAreaDropdown();
+            renderHistory();
           }
         })
         .catch(err => {
@@ -340,13 +340,11 @@
         areaStallMap[selectedArea].forEach(stall => {
           const filled = stallOccupancy[stall] || 0;
           const capacity = (stallInfoMap[stall] && stallInfoMap[stall].capacity) ? stallInfoMap[stall].capacity : 50;
-          const nextSequence = filled + 1; // Menghitung urutan yang akan dimasukkan
+          const nextSequence = filled + 1;
 
-          // Hanya tampil jika urutan selanjutnya belum melebihi kapasitas
           if (nextSequence <= capacity) {
             const opt = document.createElement("option");
             opt.value = stall;
-            // Menampilkan format ringkas (Contoh: L001-12)
             opt.textContent = `${stall}-${nextSequence}`;
             stallSelect.appendChild(opt);
           }
@@ -375,7 +373,6 @@
         localStorage.setItem("parking_dispatcher", dispatcher);
       }
 
-      // Validasi Frame Number
       if (frameNo.length > 0) {
         if (!frameNo.startsWith("MHKE")) {
           errorEl.textContent = 'Nomor Frame harus diawali dengan "MHKE"';
@@ -440,7 +437,7 @@
               validateForm();
             });
           },
-          (errorMessage) => { /* scanning... */ }
+          (errorMessage) => { }
         );
       } else {
         if (html5QrCode) {
@@ -480,16 +477,10 @@
         showLoading(false);
         if(res.status === "success") {
           alert(res.message || "Data Berhasil Disimpan!");
-          existingFrames.push(payload.frameNo);
-          
-          // Tambahkan data terisi pada stall lokal
-          stallOccupancy[payload.stall] = (stallOccupancy[payload.stall] || 0) + 1;
-
-          addHistory(payload.frameNo, payload.dispatcher, payload.stall);
-
-          // Reset Form Frame & Perbarui Dropdown
           document.getElementById("frameNo").value = "";
-          onAreaChange(); // Memperbarui urutan baru secara otomatis
+          // Refetch agar data history, occupancy, dan validasi frame sinkron dari Spreadsheet
+          fetchMasterData();
+          onAreaChange();
         } else {
           alert("Error: " + res.message);
         }
@@ -500,28 +491,20 @@
       });
     }
 
-    // === HISTORY MANAGEMENT ===
-    function addHistory(frame, dispatcher, stall) {
-      recentHistory.unshift({ frame: frame, dispatcher: dispatcher, stall: stall });
-      if (recentHistory.length > 5) {
-        recentHistory.pop();
-      }
-      localStorage.setItem("parking_history", JSON.stringify(recentHistory));
-      renderHistory();
-    }
-
+    // === RENDER HISTORY FROM SERVER DATA ===
     function renderHistory() {
       const tbody = document.getElementById("historyBody");
-      if (recentHistory.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Belum ada data</td></tr>';
+      if (!recentHistory || recentHistory.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">Belum ada data</td></tr>';
         return;
       }
 
       tbody.innerHTML = recentHistory.map(item => `
         <tr>
           <td><strong>${item.frame}</strong></td>
-          <td>${item.dispatcher}</td>
           <td>${item.stall}</td>
+          <td>${item.scanTimeReal}</td>
+          <td>${item.dispatcher}</td>
         </tr>
       `).join('');
     }
@@ -551,12 +534,42 @@
           if (res.status === "success") {
             allReportData = res.data;
             updateCharts();
+          } else {
+            alert("Gagal mengambil data laporan dari server.");
           }
         })
         .catch(err => {
           showLoading(false);
-          alert("Gagal membaca laporan data.");
+          alert("Gagal membaca laporan data: " + err);
         });
+    }
+
+    // === PARSING TANGGAL & CHART RENDER ===
+    function parseWorkDateToYYYYMMDD(scanTimeStr) {
+      if (!scanTimeStr) return null;
+
+      const parts = scanTimeStr.trim().split(/\s+/);
+      if (parts.length >= 3) {
+        const day = parts[0].padStart(2, '0');
+        const monthStr = parts[1];
+        const year = parts[2];
+        const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+
+        if (monthIdx !== -1) {
+          const month = (monthIdx + 1).toString().padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      }
+
+      const d = new Date(scanTimeStr);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = (d.getMonth() + 1).toString().padStart(2, '0');
+        const day = d.getDate().toString().padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      return null;
     }
 
     function updateCharts() {
@@ -566,33 +579,26 @@
       if (!startDate || !endDate) return;
 
       const filteredData = allReportData.filter(item => {
-        if (!item.scanTimeKerja) return false;
-        const parts = item.scanTimeKerja.split(" ");
-        if (parts.length < 3) return false;
-        
-        const day = parts[0];
-        const monthStr = parts[1];
-        const year = parts[2];
-        const monthIdx = MONTH_NAMES.indexOf(monthStr);
-        if (monthIdx === -1) return false;
-
-        const pad = (n) => n.toString().padStart(2, '0');
-        const formattedWorkDate = `${year}-${pad(monthIdx + 1)}-${pad(day)}`;
-
+        const formattedWorkDate = parseWorkDateToYYYYMMDD(item.scanTimeKerja);
+        if (!formattedWorkDate) return false;
         return formattedWorkDate >= startDate && formattedWorkDate <= endDate;
       });
 
-      renderDispatcherChart(filteredData);
-      renderDailyChart(filteredData);
+      setTimeout(() => {
+        renderDispatcherChart(filteredData);
+        renderDailyChart(filteredData);
+      }, 50);
     }
 
     function renderDispatcherChart(data) {
       const counts = {};
       data.forEach(d => {
-        counts[d.dispatcher] = (counts[d.dispatcher] || 0) + 1;
+        if (d.dispatcher) {
+          counts[d.dispatcher] = (counts[d.dispatcher] || 0) + 1;
+        }
       });
 
-      const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       const labels = sorted.map(i => i[0]);
       const values = sorted.map(i => i[1]);
 
@@ -602,10 +608,10 @@
       chartDispatcherInst = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: labels,
+          labels: labels.length ? labels : ["Tidak ada data"],
           datasets: [{
             label: 'Total Unit',
-            data: values,
+            data: values.length ? values : [0],
             backgroundColor: '#2563eb'
           }]
         },
@@ -620,12 +626,12 @@
     function renderDailyChart(data) {
       const counts = {};
       data.forEach(d => {
-        const parts = d.scanTimeKerja ? d.scanTimeKerja.split(" ") : [];
-        const dateKey = parts.length >= 3 ? `${parts[0]} ${parts[1]} ${parts[2]}` : "Unknown";
+        const formattedWorkDate = parseWorkDateToYYYYMMDD(d.scanTimeKerja);
+        const dateKey = formattedWorkDate || "Unknown";
         counts[dateKey] = (counts[dateKey] || 0) + 1;
       });
 
-      const sorted = Object.entries(counts);
+      const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
       const labels = sorted.map(i => i[0]);
       const values = sorted.map(i => i[1]);
 
@@ -635,10 +641,10 @@
       chartDailyInst = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: labels.length ? labels : ["Tidak ada data"],
           datasets: [{
             label: 'Total Unit/Hari',
-            data: values,
+            data: values.length ? values : [0],
             borderColor: '#0f172a',
             backgroundColor: '#1e3a8a',
             fill: false,
