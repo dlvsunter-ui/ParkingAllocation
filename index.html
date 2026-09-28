@@ -204,7 +204,7 @@
           </select>
         </div>
 
-        <!-- RIWAYAT 5 INPUT TERAKHIR SESUAI SHEET DATABASE -->
+        <!-- RIWAYAT 5 INPUT TERAKHIR -->
         <div class="history-card">
           <h3>5 Input Terakhir (Spreadsheet)</h3>
           <table class="history-table">
@@ -266,7 +266,7 @@
 
   <script>
     // === CONFIGURATION ===
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdQk_xpiGEOrui79X7f9G7kZQPr4w1oGRmqHAM3dQ9cWBNJrNb7MSiYGLTQkPmNi8iXA/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVaNOtKOYxpvwYe_0IhceKwfzSGvVzxCrS1gRxOamfS81yDEZXAKccK6joqTXwWDl6-Q/exec";
 
     let areaStallMap = {};
     let stallInfoMap = {};
@@ -279,8 +279,6 @@
     let chartDispatcherInst = null;
     let chartDailyInst = null;
 
-    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-
     // === INITIALIZATION ===
     window.onload = function() {
       const savedDispatcher = localStorage.getItem("parking_dispatcher");
@@ -291,7 +289,7 @@
       fetchMasterData();
 
       const now = new Date();
-      const defaultDateStr = now.toISOString().split('T')[0];
+      const defaultDateStr = formatDateToYYYYMMDD(now);
       document.getElementById("startDate").value = defaultDateStr;
       document.getElementById("endDate").value = defaultDateStr;
     };
@@ -397,27 +395,47 @@
       return isValid;
     }
 
-    function formatDateTimeCustom(d) {
+    // Standard Normal Format: YYYY-MM-DD HH:mm:ss
+    function formatStandardDateTime(d) {
       const pad = (n) => n.toString().padStart(2, '0');
-      const day = pad(d.getDate());
-      const month = MONTH_NAMES[d.getMonth()];
       const year = d.getFullYear();
+      const month = pad(d.getMonth() + 1);
+      const day = pad(d.getDate());
       const hours = pad(d.getHours());
       const minutes = pad(d.getMinutes());
+      const seconds = pad(d.getSeconds());
 
-      return `${day} ${month} ${year} ${hours}:${minutes}`;
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    function formatDateToYYYYMMDD(d) {
+      const pad = (n) => n.toString().padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     }
 
     function getScanTimeReal(d) {
-      return formatDateTimeCustom(d);
+      return formatStandardDateTime(d);
     }
 
     function getScanTimeKerja(d) {
       let workDate = new Date(d.getTime());
+      // Aturan shift kerja: Kurangi 1 hari jika dibawah jam 07:00
       if (workDate.getHours() < 7) {
         workDate.setDate(workDate.getDate() - 1);
       }
-      return formatDateTimeCustom(workDate);
+      return formatStandardDateTime(workDate);
+    }
+
+    // Format Tampilan History: DD/MM/YYYY HH:mm (Bersih tanpa GMT)
+    function cleanDisplayTime(timeStr) {
+      if (!timeStr) return "";
+      const d = new Date(timeStr);
+      if (isNaN(d.getTime())) {
+        // Fallback jika berupa teks string
+        return timeStr.replace(/GMT.*/, '').replace(/GTM.*/, '').trim();
+      }
+      const pad = (n) => n.toString().padStart(2, '0');
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
     // === QR SCANNER ===
@@ -478,7 +496,6 @@
         if(res.status === "success") {
           alert(res.message || "Data Berhasil Disimpan!");
           document.getElementById("frameNo").value = "";
-          // Refetch agar data history, occupancy, dan validasi frame sinkron dari Spreadsheet
           fetchMasterData();
           onAreaChange();
         } else {
@@ -503,7 +520,7 @@
         <tr>
           <td><strong>${item.frame}</strong></td>
           <td>${item.stall}</td>
-          <td>${item.scanTimeReal}</td>
+          <td>${cleanDisplayTime(item.scanTimeReal)}</td>
           <td>${item.dispatcher}</td>
         </tr>
       `).join('');
@@ -544,31 +561,17 @@
         });
     }
 
-    // === PARSING TANGGAL & CHART RENDER ===
-    function parseWorkDateToYYYYMMDD(scanTimeStr) {
-      if (!scanTimeStr) return null;
-
-      const parts = scanTimeStr.trim().split(/\s+/);
-      if (parts.length >= 3) {
-        const day = parts[0].padStart(2, '0');
-        const monthStr = parts[1];
-        const year = parts[2];
-        const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
-
-        if (monthIdx !== -1) {
-          const month = (monthIdx + 1).toString().padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        }
-      }
-
-      const d = new Date(scanTimeStr);
+    // === PARSING DATE TERSTANDAR UTK CHART ===
+    function parseToYYYYMMDD(timeStr) {
+      if (!timeStr) return null;
+      const d = new Date(timeStr);
       if (!isNaN(d.getTime())) {
-        const y = d.getFullYear();
-        const m = (d.getMonth() + 1).toString().padStart(2, '0');
-        const day = d.getDate().toString().padStart(2, '0');
-        return `${y}-${m}-${day}`;
+        return formatDateToYYYYMMDD(d);
       }
-
+      // Jika string format "YYYY-MM-DD HH:mm:ss"
+      if (typeof timeStr === 'string' && timeStr.length >= 10) {
+        return timeStr.substring(0, 10);
+      }
       return null;
     }
 
@@ -579,7 +582,7 @@
       if (!startDate || !endDate) return;
 
       const filteredData = allReportData.filter(item => {
-        const formattedWorkDate = parseWorkDateToYYYYMMDD(item.scanTimeKerja);
+        const formattedWorkDate = parseToYYYYMMDD(item.scanTimeKerja);
         if (!formattedWorkDate) return false;
         return formattedWorkDate >= startDate && formattedWorkDate <= endDate;
       });
@@ -626,7 +629,7 @@
     function renderDailyChart(data) {
       const counts = {};
       data.forEach(d => {
-        const formattedWorkDate = parseWorkDateToYYYYMMDD(d.scanTimeKerja);
+        const formattedWorkDate = parseToYYYYMMDD(d.scanTimeKerja);
         const dateKey = formattedWorkDate || "Unknown";
         counts[dateKey] = (counts[dateKey] || 0) + 1;
       });
