@@ -179,9 +179,9 @@
         </div>
 
         <div class="form-group">
-          <label>Frame Number (Diawali MHKE)</label>
+          <label>Frame Number (17 Karakter, Diawali MHKE)</label>
           <div class="qr-container">
-            <input type="text" id="frameNo" class="input-control" placeholder="MHKE..." oninput="handleFrameInput()" style="text-transform:uppercase" />
+            <input type="text" id="frameNo" maxlength="17" class="input-control" placeholder="MHKE..." oninput="handleFrameInput()" style="text-transform:uppercase" />
             <button type="button" class="btn-qr" onclick="toggleScanner()">Scan QR</button>
           </div>
           <div id="reader" style="display:none;"></div>
@@ -263,7 +263,7 @@
 
   <script>
     // === CONFIGURATION ===
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxT2XDkDls-DTQ4YHpKJKOIsKRzhTyGmDuS2bYIAZHUXGq7surh7TkwdRDIruEMy9iFrQ/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdtIepRuou7yqtbIh9xi2dlp-HvMK_mFEWQcmlEYGOichsNnZYraFzg0WG7oO8CYtZGw/exec";
 
     let areaStallMap = {};
     let existingFrames = [];
@@ -274,28 +274,29 @@
     let chartDispatcherInst = null;
     let chartDailyInst = null;
 
+    // Nama-nama bulan singkat
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
     // === INITIALIZATION ===
     window.onload = function() {
-      // Restore LocalStorage untuk Dispatcher
       const savedDispatcher = localStorage.getItem("parking_dispatcher");
       if (savedDispatcher) {
         document.getElementById("dispatcher").value = savedDispatcher;
       }
 
-      // Restore History dari LocalStorage jika ada
       const savedHistory = localStorage.getItem("parking_history");
       if (savedHistory) {
         recentHistory = JSON.parse(savedHistory);
         renderHistory();
       }
 
-      // Fetch initial data dari Master Google Sheet
       fetchMasterData();
 
-      // Default Date Filter untuk Chart Page
-      const todayStr = getWorkShiftDateStr(new Date());
-      document.getElementById("startDate").value = todayStr;
-      document.getElementById("endDate").value = todayStr;
+      // Default Date Filter untuk Chart Page (format YYYY-MM-DD untuk input date)
+      const now = new Date();
+      const defaultDateStr = now.toISOString().split('T')[0];
+      document.getElementById("startDate").value = defaultDateStr;
+      document.getElementById("endDate").value = defaultDateStr;
     };
 
     function fetchMasterData() {
@@ -343,7 +344,7 @@
       validateForm();
     }
 
-    // === VALIDATION & SHIFT LOGIC ===
+    // === VALIDATION & DATE FORMATTING ===
     function handleFrameInput() {
       validateForm();
     }
@@ -363,9 +364,14 @@
         localStorage.setItem("parking_dispatcher", dispatcher);
       }
 
+      // Validasi Frame Number
       if (frameNo.length > 0) {
         if (!frameNo.startsWith("MHKE")) {
           errorEl.textContent = 'Nomor Frame harus diawali dengan "MHKE"';
+          errorEl.style.display = "block";
+          isValid = false;
+        } else if (frameNo.length !== 17) {
+          errorEl.textContent = `Nomor Frame harus berjumlah 17 karakter (Saat ini: ${frameNo.length} karakter)`;
           errorEl.style.display = "block";
           isValid = false;
         } else if (existingFrames.includes(frameNo)) {
@@ -383,17 +389,33 @@
       return isValid;
     }
 
-    function getWorkShiftDateStr(dateObj) {
-      let d = new Date(dateObj);
-      if (d.getHours() < 7) {
-        d.setDate(d.getDate() - 1);
-      }
-      return d.toISOString().split('T')[0];
+    // Format umum: dd MMM yyyy HH:mm
+    function formatDateTimeCustom(d) {
+      const pad = (n) => n.toString().padStart(2, '0');
+      const day = pad(d.getDate());
+      const month = MONTH_NAMES[d.getMonth()];
+      const year = d.getFullYear();
+      const hours = pad(d.getHours());
+      const minutes = pad(d.getMinutes());
+
+      return `${day} ${month} ${year} ${hours}:${minutes}`;
     }
 
-    function formatDateTime(d) {
-      const pad = (n) => n.toString().padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    // Ambil Scan Time Real
+    function getScanTimeReal(d) {
+      return formatDateTimeCustom(d);
+    }
+
+    // Ambil Scan Time Kerja (Tanggal minus 1 hari jika Jam 00:00 - 06:59)
+    function getScanTimeKerja(d) {
+      let workDate = new Date(d.getTime());
+      
+      // Jika jam antara 00:00:00 s/d 06:59:59 (jam < 7)
+      if (workDate.getHours() < 7) {
+        workDate.setDate(workDate.getDate() - 1);
+      }
+      
+      return formatDateTimeCustom(workDate);
     }
 
     // === QR SCANNER ===
@@ -406,7 +428,8 @@
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 150 } },
           (decodedText) => {
-            document.getElementById("frameNo").value = decodedText.toUpperCase();
+            const cleanText = decodedText.trim().toUpperCase();
+            document.getElementById("frameNo").value = cleanText;
             html5QrCode.stop().then(() => {
               readerEl.style.display = "none";
               validateForm();
@@ -423,14 +446,13 @@
       }
     }
 
-    // === SUBMIT DATA (MENGGUNAKAN TEXT/PLAIN BIAR BEBAS CORS GITHUB) ===
+    // === SUBMIT DATA ===
     function submitForm() {
       if (!validateForm()) return;
 
       const now = new Date();
-      const realTimeStr = formatDateTime(now);
-      const shiftDateStr = getWorkShiftDateStr(now);
-      const workTimeStr = shiftDateStr + " (Shift)";
+      const realTimeStr = getScanTimeReal(now);
+      const workTimeStr = getScanTimeKerja(now);
 
       const payload = {
         frameNo: document.getElementById("frameNo").value.trim().toUpperCase(),
@@ -455,10 +477,8 @@
           alert("Data Berhasil Disimpan!");
           existingFrames.push(payload.frameNo);
           
-          // Tambahkan ke History Lokal (Maksimal 5)
           addHistory(payload.frameNo, payload.dispatcher, payload.stall);
 
-          // Reset Input
           document.getElementById("frameNo").value = "";
           document.getElementById("stall").value = "";
           validateForm();
@@ -539,8 +559,20 @@
 
       const filteredData = allReportData.filter(item => {
         if (!item.scanTimeKerja) return false;
-        const workDate = item.scanTimeKerja.split(" ")[0];
-        return workDate >= startDate && workDate <= endDate;
+        // Parse tanggal dd MMM yyyy dari string scanTimeKerja
+        const parts = item.scanTimeKerja.split(" ");
+        if (parts.length < 3) return false;
+        
+        const day = parts[0];
+        const monthStr = parts[1];
+        const year = parts[2];
+        const monthIdx = MONTH_NAMES.indexOf(monthStr);
+        if (monthIdx === -1) return false;
+
+        const pad = (n) => n.toString().padStart(2, '0');
+        const formattedWorkDate = `${year}-${pad(monthIdx + 1)}-${pad(day)}`;
+
+        return formattedWorkDate >= startDate && formattedWorkDate <= endDate;
       });
 
       renderDispatcherChart(filteredData);
@@ -581,11 +613,13 @@
     function renderDailyChart(data) {
       const counts = {};
       data.forEach(d => {
-        const dateKey = d.scanTimeKerja ? d.scanTimeKerja.split(" ")[0] : "Unknown";
+        // Ambil hanya dd MMM yyyy untuk pengelompokan harian
+        const parts = d.scanTimeKerja ? d.scanTimeKerja.split(" ") : [];
+        const dateKey = parts.length >= 3 ? `${parts[0]} ${parts[1]} ${parts[2]}` : "Unknown";
         counts[dateKey] = (counts[dateKey] || 0) + 1;
       });
 
-      const sorted = Object.entries(counts).sort((a,b) => a[0].localeCompare(b[0]));
+      const sorted = Object.entries(counts);
       const labels = sorted.map(i => i[0]);
       const values = sorted.map(i => i[1]);
 
