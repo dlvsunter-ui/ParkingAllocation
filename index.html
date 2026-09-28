@@ -221,7 +221,7 @@
           </table>
         </div>
 
-        <div style="height: 70px;"></div> <!-- Spacer for fixed footer -->
+        <div style="height: 70px;"></div>
 
         <div class="footer-actions">
           <button type="submit" id="btnSave" class="btn-submit" disabled>Simpan</button>
@@ -263,9 +263,11 @@
 
   <script>
     // === CONFIGURATION ===
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdtIepRuou7yqtbIh9xi2dlp-HvMK_mFEWQcmlEYGOichsNnZYraFzg0WG7oO8CYtZGw/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7WYIb_yUPat3O1psUAZP65b8Ni6u38nc4SdGrb9cgcDy8jCKD_63EVQs7ZymxE0TM/exec";
 
     let areaStallMap = {};
+    let stallInfoMap = {};
+    let stallOccupancy = {};
     let existingFrames = [];
     let allReportData = [];
     let recentHistory = [];
@@ -274,7 +276,6 @@
     let chartDispatcherInst = null;
     let chartDailyInst = null;
 
-    // Nama-nama bulan singkat
     const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
     // === INITIALIZATION ===
@@ -292,7 +293,6 @@
 
       fetchMasterData();
 
-      // Default Date Filter untuk Chart Page (format YYYY-MM-DD untuk input date)
       const now = new Date();
       const defaultDateStr = now.toISOString().split('T')[0];
       document.getElementById("startDate").value = defaultDateStr;
@@ -307,6 +307,8 @@
           showLoading(false);
           if (data.status === "success") {
             areaStallMap = data.areaStallMap;
+            stallInfoMap = data.stallInfoMap;
+            stallOccupancy = data.stallOccupancy;
             existingFrames = data.existingFrames;
             populateAreaDropdown();
           }
@@ -331,14 +333,23 @@
     function onAreaChange() {
       const selectedArea = document.getElementById("area").value;
       const stallSelect = document.getElementById("stall");
+      
       stallSelect.innerHTML = '<option value="">-- Pilih Stall --</option>';
 
       if (selectedArea && areaStallMap[selectedArea]) {
         areaStallMap[selectedArea].forEach(stall => {
-          const opt = document.createElement("option");
-          opt.value = stall;
-          opt.textContent = stall;
-          stallSelect.appendChild(opt);
+          const filled = stallOccupancy[stall] || 0;
+          const capacity = (stallInfoMap[stall] && stallInfoMap[stall].capacity) ? stallInfoMap[stall].capacity : 50;
+          const nextSequence = filled + 1; // Menghitung urutan yang akan dimasukkan
+
+          // Hanya tampil jika urutan selanjutnya belum melebihi kapasitas
+          if (nextSequence <= capacity) {
+            const opt = document.createElement("option");
+            opt.value = stall;
+            // Menampilkan format ringkas (Contoh: L001-12)
+            opt.textContent = `${stall}-${nextSequence}`;
+            stallSelect.appendChild(opt);
+          }
         });
       }
       validateForm();
@@ -389,7 +400,6 @@
       return isValid;
     }
 
-    // Format umum: dd MMM yyyy HH:mm
     function formatDateTimeCustom(d) {
       const pad = (n) => n.toString().padStart(2, '0');
       const day = pad(d.getDate());
@@ -401,20 +411,15 @@
       return `${day} ${month} ${year} ${hours}:${minutes}`;
     }
 
-    // Ambil Scan Time Real
     function getScanTimeReal(d) {
       return formatDateTimeCustom(d);
     }
 
-    // Ambil Scan Time Kerja (Tanggal minus 1 hari jika Jam 00:00 - 06:59)
     function getScanTimeKerja(d) {
       let workDate = new Date(d.getTime());
-      
-      // Jika jam antara 00:00:00 s/d 06:59:59 (jam < 7)
       if (workDate.getHours() < 7) {
         workDate.setDate(workDate.getDate() - 1);
       }
-      
       return formatDateTimeCustom(workDate);
     }
 
@@ -474,14 +479,17 @@
       .then(res => {
         showLoading(false);
         if(res.status === "success") {
-          alert("Data Berhasil Disimpan!");
+          alert(res.message || "Data Berhasil Disimpan!");
           existingFrames.push(payload.frameNo);
           
+          // Tambahkan data terisi pada stall lokal
+          stallOccupancy[payload.stall] = (stallOccupancy[payload.stall] || 0) + 1;
+
           addHistory(payload.frameNo, payload.dispatcher, payload.stall);
 
+          // Reset Form Frame & Perbarui Dropdown
           document.getElementById("frameNo").value = "";
-          document.getElementById("stall").value = "";
-          validateForm();
+          onAreaChange(); // Memperbarui urutan baru secara otomatis
         } else {
           alert("Error: " + res.message);
         }
@@ -559,7 +567,6 @@
 
       const filteredData = allReportData.filter(item => {
         if (!item.scanTimeKerja) return false;
-        // Parse tanggal dd MMM yyyy dari string scanTimeKerja
         const parts = item.scanTimeKerja.split(" ");
         if (parts.length < 3) return false;
         
@@ -613,7 +620,6 @@
     function renderDailyChart(data) {
       const counts = {};
       data.forEach(d => {
-        // Ambil hanya dd MMM yyyy untuk pengelompokan harian
         const parts = d.scanTimeKerja ? d.scanTimeKerja.split(" ") : [];
         const dateKey = parts.length >= 3 ? `${parts[0]} ${parts[1]} ${parts[2]}` : "Unknown";
         counts[dateKey] = (counts[dateKey] || 0) + 1;
