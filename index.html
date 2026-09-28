@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parking Allocation</title>
+  <!-- Chart.js & Html5-QRCode Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  
+  <style>
+    :root {
+      --primary-dark: #0f172a;
+      --primary-blue: #1e3a8a;
+      --accent-blue: #2563eb;
+      --bg-gray: #f8fafc;
+      --input-bg: #e2e8f0;
+      --text-dark: #1e293b;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { margin: 0; background-color: var(--bg-gray); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
+
+    header {
+      background-color: var(--primary-dark);
+      color: #ffffff;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; }
+    
+    .btn-chart {
+      background-color: var(--accent-blue);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .container { padding: 16px; max-width: 500px; margin: 0 auto; width: 100%; flex: 1; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #475569; }
+    
+    .input-control {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--input-bg);
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      outline: none;
+    }
+
+    .input-control:focus { border-color: var(--accent-blue); background-color: #ffffff; }
+
+    .qr-container { display: flex; gap: 8px; }
+    .btn-qr {
+      background-color: var(--primary-blue);
+      color: white;
+      border: none;
+      padding: 0 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .error-text { color: #dc2626; font-size: 0.75rem; margin-top: 4px; display: none; }
+
+    .footer-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 12px 20px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-submit {
+      background-color: var(--primary-blue);
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-submit:disabled { background-color: #94a3b8; cursor: not-allowed; }
+
+    /* Modal Scanner & Chart View */
+    .view-page { display: none; }
+    .view-page.active { display: block; }
+    
+    #reader { width: 100%; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+
+    .chart-card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .chart-card h3 { margin: 0 0 12px 0; font-size: 0.95rem; color: var(--primary-dark); }
+    
+    .filter-box { background: white; padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
+    .filter-box input { padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem; }
+
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background: rgba(15, 23, 42, 0.7);
+      display: none; justify-content: center; align-items: center;
+      color: white; font-weight: 600; z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loadingOverlay">Memproses Data...</div>
+
+  <!-- HALAMAN 1: FORM INPUT -->
+  <div id="pageInput" class="view-page active">
+    <header>
+      <h1>Parking Allocation</h1>
+      <button class="btn-chart" onclick="openChartPage()">Chart &#128200;</button>
+    </header>
+
+    <div class="container">
+      <form id="allocationForm" onsubmit="event.preventDefault(); submitForm();">
+        
+        <div class="form-group">
+          <label>Nama Dispatcher</label>
+          <input type="text" id="dispatcher" class="input-control" placeholder="Masukkan nama Anda" oninput="validateForm()" />
+        </div>
+
+        <div class="form-group">
+          <label>Frame Number (Diawali MHKE)</label>
+          <div class="qr-container">
+            <input type="text" id="frameNo" class="input-control" placeholder="MHKE..." oninput="handleFrameInput()" style="text-transform:uppercase" />
+            <button type="button" class="btn-qr" onclick="toggleScanner()">Scan QR</button>
+          </div>
+          <div id="reader" style="display:none;"></div>
+          <div id="frameError" class="error-text"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Area</label>
+          <select id="area" class="input-control" onchange="onAreaChange()">
+            <option value="">-- Pilih Area --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Stall</label>
+          <select id="stall" class="input-control" onchange="validateForm()">
+            <option value="">-- Pilih Stall --</option>
+          </select>
+        </div>
+
+        <div style="height: 60px;"></div> <!-- Spacer for fixed footer -->
+
+        <div class="footer-actions">
+          <button type="submit" id="btnSave" class="btn-submit" disabled>Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- HALAMAN 2: DASHBOARD / CHART -->
+  <div id="pageChart" class="view-page">
+    <header>
+      <h1>Achievement Dashboard</h1>
+      <button class="btn-chart" onclick="showPage('pageInput')">&#8592; Kembali</button>
+    </header>
+
+    <div class="container">
+      <div class="filter-box">
+        <div>
+          <label style="font-size: 0.75rem;">Start Date:</label>
+          <input type="date" id="startDate" onchange="updateCharts()" />
+        </div>
+        <div>
+          <label style="font-size: 0.75rem;">End Date:</label>
+          <input type="date" id="endDate" onchange="updateCharts()" />
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Achievement Unit per Dispatcher (Sorted)</h3>
+        <canvas id="chartDispatcher"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Total Unit per Hari Shift Kerja</h3>
+        <canvas id="chartDaily"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === CONFIGURATION ===
+    // SANGAT PENTING: Ganti URL di bawah dengan Web App URL dari Apps Script Anda!
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7WYIb_yUPat3O1psUAZP65b8Ni6u38nc4SdGrb9cgcDy8jCKD_63EVQs7ZymxE0TM/exec";
+
+    let areaStallMap = {};
+    let existingFrames = [];
+    let allReportData = [];
+    let html5QrCode = null;
+
+    let chartDispatcherInst = null;
+    let chartDailyInst = null;
+
+    // === INITIALIZATION ===
+    window.onload = function() {
+      // Restore LocalStorage untuk Dispatcher
+      const savedDispatcher = localStorage.getItem("parking_dispatcher");
+      if (savedDispatcher) {
+        document.getElementById("dispatcher").value = savedDispatcher;
+      }
+
+      // Fetch initial data dari Master Google Sheet
+      fetchMasterData();
+
+      // Default Date Filter untuk Chart Page
+      const todayStr = getWorkShiftDateStr(new Date());
+      document.getElementById("startDate").value = todayStr;
+      document.getElementById("endDate").value = todayStr;
+    };
+
+    function fetchMasterData() {
+      showLoading(true);
+      fetch(SCRIPT_URL + "?action=getInitialData")
+        .then(res => res.json())
+        .then(data => {
+          showLoading(false);
+          if (data.status === "success") {
+            areaStallMap = data.areaStallMap;
+            existingFrames = data.existingFrames;
+            populateAreaDropdown();
+          }
+        })
+        .catch(err => {
+          showLoading(false);
+          alert("Gagal mengambil master data: " + err);
+        });
+    }
+
+    function populateAreaDropdown() {
+      const areaSelect = document.getElementById("area");
+      areaSelect.innerHTML = '<option value="">-- Pilih Area --</option>';
+      Object.keys(areaStallMap).forEach(area => {
+        const opt = document.createElement("option");
+        opt.value = area;
+        opt.textContent = area;
+        areaSelect.appendChild(opt);
+      });
+    }
+
+    function onAreaChange() {
+      const selectedArea = document.getElementById("area").value;
+      const stallSelect = document.getElementById("stall");
+      stallSelect.innerHTML = '<option value="">-- Pilih Stall --</option>';
+
+      if (selectedArea && areaStallMap[selectedArea]) {
+        areaStallMap[selectedArea].forEach(stall => {
+          const opt = document.createElement("option");
+          opt.value = stall;
+          opt.textContent = stall;
+          stallSelect.appendChild(opt);
+        });
+      }
+      validateForm();
+    }
+
+    // === VALIDATION & SHIFT LOGIC ===
+    function handleFrameInput() {
+      validateForm();
+    }
+
+    function validateForm() {
+      const dispatcher = document.getElementById("dispatcher").value.trim();
+      const frameNo = document.getElementById("frameNo").value.trim().toUpperCase();
+      const area = document.getElementById("area").value;
+      const stall = document.getElementById("stall").value;
+      const errorEl = document.getElementById("frameError");
+      const btnSave = document.getElementById("btnSave");
+
+      let isValid = true;
+      errorEl.style.display = "none";
+
+      // Simpan Nama Dispatcher secara otomatis di LocalStorage device
+      if(dispatcher) {
+        localStorage.setItem("parking_dispatcher", dispatcher);
+      }
+
+      // Validasi Frame Number
+      if (frameNo.length > 0) {
+        if (!frameNo.startsWith("MHKE")) {
+          errorEl.textContent = 'Nomor Frame harus diawali dengan "MHKE"';
+          errorEl.style.display = "block";
+          isValid = false;
+        } else if (existingFrames.includes(frameNo)) {
+          errorEl.textContent = "Nomor Frame sudah ada di database (Duplikat)!";
+          errorEl.style.display = "block";
+          isValid = false;
+        }
+      } else {
+        isValid = false;
+      }
+
+      if (!dispatcher || !area || !stall) isValid = false;
+
+      btnSave.disabled = !isValid;
+      return isValid;
+    }
+
+    // Perhitungan Tanggal Shift Kerja (07:00:00 - 06:59:59 besoknya)
+    function getWorkShiftDateStr(dateObj) {
+      let d = new Date(dateObj);
+      if (d.getHours() < 7) {
+        d.setDate(d.getDate() - 1); // Masuk tanggal shift kemarin
+      }
+      return d.toISOString().split('T')[0];
+    }
+
+    function formatDateTime(d) {
+      const pad = (n) => n.toString().padStart(2, '0');
+      return ${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())};
+    }
+
+    // === QR SCANNER (RINGAN DENGAN HTML5-QRCODE) ===
+    function toggleScanner() {
+      const readerEl = document.getElementById("reader");
+      if (readerEl.style.display === "none") {
+        readerEl.style.display = "block";
+        html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          (decodedText) => {
+            document.getElementById("frameNo").value = decodedText.toUpperCase();
+            html5QrCode.stop().then(() => {
+              readerEl.style.display = "none";
+              validateForm();
+            });
+          },
+          (errorMessage) => { /* scanning... */ }
+        );
+      } else {
+        if (html5QrCode) {
+          html5QrCode.stop().then(() => {
+            readerEl.style.display = "none";
+          });
+        }
+      }
+    }
+
+    // === SUBMIT DATA ===
+    function submitForm() {
+      if (!validateForm()) return;
+
+      const now = new Date();
+      const realTimeStr = formatDateTime(now);
+      const shiftDateStr = getWorkShiftDateStr(now);
+      const workTimeStr = shiftDateStr + " (Shift)";
+
+      const payload = {
+        frameNo: document.getElementById("frameNo").value.trim().toUpperCase(),
+        dispatcher: document.getElementById("dispatcher").value.trim(),
+        area: document.getElementById("area").value,
+        stall: document.getElementById("stall").value,
+        scanTimeReal: realTimeStr,
+        scanTimeKerja: workTimeStr
+      };
+
+      showLoading(true);
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        showLoading(false);
+        if(res.status === "success") {
+          alert("Data Berhasil Disimpan!");
+          // Update lokal data
+          existingFrames.push(payload.frameNo);
+          // Reset Input Frame & Stall saja, Dispatcher tetap tersimpan
+          document.getElementById("frameNo").value = "";
+          document.getElementById("stall").value = "";
+          validateForm();
+        } else {
+          alert("Error: " + res.message);
+        }
+      })
+      .catch(err => {
+        showLoading(false);
+        alert("Terjadi kesalahan pengiriman data: " + err);
+      });
+    }
+
+    // === NAVIGATION & CHART PAGE ===
+    function showPage(pageId) {
+      document.querySelectorAll('.view-page').forEach(el => el.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+
+    function openChartPage() {
+      const pwd = prompt("Masukkan Password untuk membuka Chart Dashboard:");
+      if (pwd === "2026") {
+        showPage("pageChart");
+        loadChartData();
+      } else if (pwd !== null) {
+        alert("Password Salah!");
+      }
+    }
+
+    function loadChartData() {
+      showLoading(true);
+      fetch(SCRIPT_URL + "?action=getReportData")
+        .then(res => res.json())
+        .then(res => {
+          showLoading(false);
+          if (res.status === "success") {
+            allReportData = res.data;
+            updateCharts();
+          }
+        })
+        .catch(err => {
+          showLoading(false);
+          alert("Gagal membaca laporan data.");
+        });
+    }
+
+    function updateCharts() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+
+      if (!startDate || !endDate) return;
+
+      // Filter Data Berdasarkan Tanggal Sistem Kerja
+      const filteredData = allReportData.filter(item => {
+        if (!item.scanTimeKerja) return false;
+        const workDate = item.scanTimeKerja.split(" ")[0]; // Mengambil format YYYY-MM-DD
+        return workDate >= startDate && workDate <= endDate;
+      });
+
+      renderDispatcherChart(filteredData);
+      renderDailyChart(filteredData);
+    }
+
+    function renderDispatcherChart(data) {
+      // Aggregasi
+      const counts = {};
+      data.forEach(d => {
+        counts[d.dispatcher] = (counts[d.dispatcher] || 0) + 1;
+      });
+
+      // Sort Descending (Short / Top by unit)
+      const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+      const labels = sorted.map(i => i[0]);
+      const values = sorted.map(i => i[1]);
+
+      const ctx = document.getElementById("chartDispatcher").getContext("2d");
+      if (chartDispatcherInst) chartDispatcherInst.destroy();
+
+      chartDispatcherInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Total Unit',
+            data: values,
+            backgroundColor: '#2563eb'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    function renderDailyChart(data) {
+      // Aggregasi
+      const counts = {};
+      data.forEach(d => {
+        const dateKey = d.scanTimeKerja ? d.scanTimeKerja.split(" ")[0] : "Unknown";
+        counts[dateKey] = (counts[dateKey] || 0) + 1;
+      });
+
+      const sorted = Object.entries(counts).sort((a,b) => a[0].localeCompare(b[0]));
+      const labels = sorted.map(i => i[0]);
+      const values = sorted.map(i => i[1]);
+
+      const ctx = document.getElementById("chartDaily").getContext("2d");
+      if (chartDailyInst) chartDailyInst.destroy();
+
+      chartDailyInst = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Total Unit/Hari',
+            data: values,
+            borderColor: '#0f172a',
+            backgroundColor: '#1e3a8a',
+            fill: false,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    function showLoading(show) {
+      document.getElementById("loadingOverlay").style.display = show ? "flex" : "none";
+    }
+  </script>
+</body>
+</html>
