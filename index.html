@@ -86,6 +86,7 @@
       box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
       display: flex;
       justify-content: flex-end;
+      z-index: 100;
     }
 
     .btn-submit {
@@ -100,6 +101,42 @@
     }
 
     .btn-submit:disabled { background-color: #94a3b8; cursor: not-allowed; }
+
+    /* History Table Styling */
+    .history-card {
+      background: white;
+      padding: 14px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .history-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .history-table th, .history-table td {
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .history-table th {
+      background-color: #f1f5f9;
+      color: #475569;
+      font-weight: 600;
+    }
 
     /* Modal Scanner & Chart View */
     .view-page { display: none; }
@@ -165,7 +202,26 @@
           </select>
         </div>
 
-        <div style="height: 60px;"></div> <!-- Spacer for fixed footer -->
+        <!-- RIWAYAT 5 INPUT TERAKHIR -->
+        <div class="history-card">
+          <h3>5 Input Terakhir</h3>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Frame</th>
+                <th>Dispatcher</th>
+                <th>Stall</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr>
+                <td colspan="3" style="text-align: center; color: #94a3b8;">Belum ada data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="height: 70px;"></div> <!-- Spacer for fixed footer -->
 
         <div class="footer-actions">
           <button type="submit" id="btnSave" class="btn-submit" disabled>Simpan</button>
@@ -207,12 +263,12 @@
 
   <script>
     // === CONFIGURATION ===
-    // SANGAT PENTING: Ganti URL di bawah dengan Web App URL dari Apps Script Anda!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7WYIb_yUPat3O1psUAZP65b8Ni6u38nc4SdGrb9cgcDy8jCKD_63EVQs7ZymxE0TM/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxT2XDkDls-DTQ4YHpKJKOIsKRzhTyGmDuS2bYIAZHUXGq7surh7TkwdRDIruEMy9iFrQ/exec";
 
     let areaStallMap = {};
     let existingFrames = [];
     let allReportData = [];
+    let recentHistory = [];
     let html5QrCode = null;
 
     let chartDispatcherInst = null;
@@ -224,6 +280,13 @@
       const savedDispatcher = localStorage.getItem("parking_dispatcher");
       if (savedDispatcher) {
         document.getElementById("dispatcher").value = savedDispatcher;
+      }
+
+      // Restore History dari LocalStorage jika ada
+      const savedHistory = localStorage.getItem("parking_history");
+      if (savedHistory) {
+        recentHistory = JSON.parse(savedHistory);
+        renderHistory();
       }
 
       // Fetch initial data dari Master Google Sheet
@@ -296,12 +359,10 @@
       let isValid = true;
       errorEl.style.display = "none";
 
-      // Simpan Nama Dispatcher secara otomatis di LocalStorage device
       if(dispatcher) {
         localStorage.setItem("parking_dispatcher", dispatcher);
       }
 
-      // Validasi Frame Number
       if (frameNo.length > 0) {
         if (!frameNo.startsWith("MHKE")) {
           errorEl.textContent = 'Nomor Frame harus diawali dengan "MHKE"';
@@ -322,21 +383,20 @@
       return isValid;
     }
 
-    // Perhitungan Tanggal Shift Kerja (07:00:00 - 06:59:59 besoknya)
     function getWorkShiftDateStr(dateObj) {
       let d = new Date(dateObj);
       if (d.getHours() < 7) {
-        d.setDate(d.getDate() - 1); // Masuk tanggal shift kemarin
+        d.setDate(d.getDate() - 1);
       }
       return d.toISOString().split('T')[0];
     }
 
     function formatDateTime(d) {
       const pad = (n) => n.toString().padStart(2, '0');
-      return ${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())};
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
-    // === QR SCANNER (RINGAN DENGAN HTML5-QRCODE) ===
+    // === QR SCANNER ===
     function toggleScanner() {
       const readerEl = document.getElementById("reader");
       if (readerEl.style.display === "none") {
@@ -363,7 +423,7 @@
       }
     }
 
-    // === SUBMIT DATA ===
+    // === SUBMIT DATA (MENGGUNAKAN TEXT/PLAIN BIAR BEBAS CORS GITHUB) ===
     function submitForm() {
       if (!validateForm()) return;
 
@@ -382,8 +442,10 @@
       };
 
       showLoading(true);
+
       fetch(SCRIPT_URL, {
         method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       })
       .then(res => res.json())
@@ -391,9 +453,12 @@
         showLoading(false);
         if(res.status === "success") {
           alert("Data Berhasil Disimpan!");
-          // Update lokal data
           existingFrames.push(payload.frameNo);
-          // Reset Input Frame & Stall saja, Dispatcher tetap tersimpan
+          
+          // Tambahkan ke History Lokal (Maksimal 5)
+          addHistory(payload.frameNo, payload.dispatcher, payload.stall);
+
+          // Reset Input
           document.getElementById("frameNo").value = "";
           document.getElementById("stall").value = "";
           validateForm();
@@ -405,6 +470,32 @@
         showLoading(false);
         alert("Terjadi kesalahan pengiriman data: " + err);
       });
+    }
+
+    // === HISTORY MANAGEMENT ===
+    function addHistory(frame, dispatcher, stall) {
+      recentHistory.unshift({ frame: frame, dispatcher: dispatcher, stall: stall });
+      if (recentHistory.length > 5) {
+        recentHistory.pop();
+      }
+      localStorage.setItem("parking_history", JSON.stringify(recentHistory));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const tbody = document.getElementById("historyBody");
+      if (recentHistory.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Belum ada data</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = recentHistory.map(item => `
+        <tr>
+          <td><strong>${item.frame}</strong></td>
+          <td>${item.dispatcher}</td>
+          <td>${item.stall}</td>
+        </tr>
+      `).join('');
     }
 
     // === NAVIGATION & CHART PAGE ===
@@ -446,10 +537,9 @@
 
       if (!startDate || !endDate) return;
 
-      // Filter Data Berdasarkan Tanggal Sistem Kerja
       const filteredData = allReportData.filter(item => {
         if (!item.scanTimeKerja) return false;
-        const workDate = item.scanTimeKerja.split(" ")[0]; // Mengambil format YYYY-MM-DD
+        const workDate = item.scanTimeKerja.split(" ")[0];
         return workDate >= startDate && workDate <= endDate;
       });
 
@@ -458,13 +548,11 @@
     }
 
     function renderDispatcherChart(data) {
-      // Aggregasi
       const counts = {};
       data.forEach(d => {
         counts[d.dispatcher] = (counts[d.dispatcher] || 0) + 1;
       });
 
-      // Sort Descending (Short / Top by unit)
       const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
       const labels = sorted.map(i => i[0]);
       const values = sorted.map(i => i[1]);
@@ -491,7 +579,6 @@
     }
 
     function renderDailyChart(data) {
-      // Aggregasi
       const counts = {};
       data.forEach(d => {
         const dateKey = d.scanTimeKerja ? d.scanTimeKerja.split(" ")[0] : "Unknown";
