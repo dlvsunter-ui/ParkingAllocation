@@ -1,668 +1,647 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Parking Allocation</title>
-  <!-- Chart.js & Html5-QRCode Plugin -->
+  <!-- Tailwind CSS & Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- HTML5 QR Code Scanner -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  
   <style>
-    :root {
-      --primary-dark: #0f172a;
-      --primary-blue: #1e3a8a;
-      --accent-blue: #2563eb;
-      --bg-gray: #f8fafc;
-      --input-bg: #e2e8f0;
-      --text-dark: #1e293b;
-    }
-
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { margin: 0; background-color: var(--bg-gray); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
-
-    header {
-      background-color: var(--primary-dark);
-      color: #ffffff;
-      padding: 14px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; }
-    
-    .btn-chart {
-      background-color: var(--accent-blue);
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-
-    .container { padding: 16px; max-width: 550px; margin: 0 auto; width: 100%; flex: 1; }
-
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #475569; }
-    
-    .input-control {
-      width: 100%;
-      padding: 12px;
-      background-color: var(--input-bg);
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      font-size: 0.95rem;
-      color: var(--text-dark);
-      outline: none;
-    }
-
-    .input-control:focus { border-color: var(--accent-blue); background-color: #ffffff; }
-
-    .qr-container { display: flex; gap: 8px; }
-    .btn-qr {
-      background-color: var(--primary-blue);
-      color: white;
-      border: none;
-      padding: 0 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .error-text { color: #dc2626; font-size: 0.75rem; margin-top: 4px; display: none; }
-
-    .footer-actions {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      padding: 12px 20px;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-      display: flex;
-      justify-content: flex-end;
-      z-index: 100;
-    }
-
-    .btn-submit {
-      background-color: var(--primary-blue);
-      color: white;
-      border: none;
-      padding: 12px 28px;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .btn-submit:disabled { background-color: #94a3b8; cursor: not-allowed; }
-
-    /* History Table Styling */
-    .history-card {
-      background: white;
-      padding: 14px;
-      border-radius: 8px;
-      margin-top: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      overflow-x: auto;
-    }
-
-    .history-card h3 {
-      margin: 0 0 10px 0;
-      font-size: 0.9rem;
-      color: var(--primary-dark);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.78rem;
-    }
-
-    .history-table th, .history-table td {
-      padding: 8px 6px;
-      text-align: left;
-      border-bottom: 1px solid #e2e8f0;
-      white-space: nowrap;
-    }
-
-    .history-table th {
-      background-color: #f1f5f9;
-      color: #475569;
-      font-weight: 600;
-    }
-
-    /* Page Views */
-    .view-page { display: none; }
-    .view-page.active { display: block; }
-    
-    #reader { width: 100%; margin-top: 10px; border-radius: 8px; overflow: hidden; }
-
-    .chart-card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .chart-card h3 { margin: 0 0 12px 0; font-size: 0.95rem; color: var(--primary-dark); }
-    
-    .filter-box { background: white; padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
-    .filter-box input { padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem; }
-
-    /* Loading Overlay */
-    #loadingOverlay {
-      position: fixed; top:0; left:0; right:0; bottom:0;
-      background: rgba(15, 23, 42, 0.7);
-      display: none; justify-content: center; align-items: center;
-      color: white; font-weight: 600; z-index: 9999;
-    }
+    body { -webkit-tap-highlight-color: transparent; }
+    .nav-active { color: #1e40af; border-top: 2px solid #1e40af; font-weight: 700; }
   </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-800 font-sans pb-24">
 
-  <div id="loadingOverlay">Memproses Data...</div>
+  <!-- Header Formal: Parking Allocation -->
+  <header class="bg-slate-900 text-white px-5 py-3 shadow-md sticky top-0 z-30 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="bg-blue-700 p-2 rounded-lg text-white shadow">
+        <i class="fa-solid fa-square-parking text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base tracking-wider uppercase leading-tight">PARKING ALLOCATION</h1>
+        <p class="text-[11px] text-slate-400">Yard Management & Dispatch System</p>
+      </div>
+    </div>
+    <span id="badgeStatus" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+      Online
+    </span>
+  </header>
 
-  <!-- HALAMAN 1: FORM INPUT -->
-  <div id="pageInput" class="view-page active">
-    <header>
-      <h1>Parking Allocation</h1>
-      <button class="btn-chart" onclick="openChartPage()">Chart &#128200;</button>
-    </header>
+  <!-- Container Utama -->
+  <main class="max-w-md mx-auto p-4 space-y-4">
 
-    <div class="container">
-      <form id="allocationForm" onsubmit="event.preventDefault(); submitForm();">
-        
-        <div class="form-group">
-          <label>Nama Dispatcher</label>
-          <input type="text" id="dispatcher" class="input-control" placeholder="Masukkan nama Anda" oninput="validateForm()" />
-        </div>
-
-        <div class="form-group">
-          <label>Frame Number (17 Karakter, Diawali MHKE)</label>
-          <div class="qr-container">
-            <input type="text" id="frameNo" maxlength="17" class="input-control" placeholder="MHKE..." oninput="handleFrameInput()" style="text-transform:uppercase" />
-            <button type="button" class="btn-qr" onclick="toggleScanner()">Scan QR</button>
+    <!-- VIEW 1: UNIT IN (DEFAULT) -->
+    <section id="viewIn" class="space-y-4">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse"></span>
+            <h2 class="font-bold text-slate-800 text-sm tracking-wide">INPUT ALAMAT PARKIR (IN)</h2>
           </div>
-          <div id="reader" style="display:none;"></div>
-          <div id="frameError" class="error-text"></div>
+          <button type="button" onclick="switchTab('out')" class="text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1.5 rounded-lg active:scale-95 transition shadow-sm">
+            <i class="fa-solid fa-truck-pickup mr-1"></i> Pick Unit
+          </button>
         </div>
 
-        <div class="form-group">
-          <label>Area</label>
-          <select id="area" class="input-control" onchange="onAreaChange()">
-            <option value="">-- Pilih Area --</option>
-          </select>
-        </div>
+        <form id="formCheckIn" class="space-y-4" onsubmit="submitCheckIn(event)">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-semibold text-slate-600">Nama Dispatcher</label>
+              <span class="text-[10px] text-slate-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Otomatis tersimpan</span>
+            </div>
+            <input type="text" id="inDispatcher" required placeholder="Ketik nama dispatcher" oninput="saveDispatcherName(this.value)"
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 outline-none">
+          </div>
 
-        <div class="form-group">
-          <label>Stall</label>
-          <select id="stall" class="input-control" onchange="validateForm()">
-            <option value="">-- Pilih Stall --</option>
-          </select>
-        </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-semibold text-slate-600">No Frame (17 Digit: MHKE...)</label>
+              <span id="inFrameCount" class="text-[10px] text-slate-400 font-mono">0/17</span>
+            </div>
+            <div class="flex space-x-2">
+              <input type="text" id="inNoFrame" required maxlength="17" placeholder="Contoh: MHKE..."
+                oninput="handleFrameInput(this, 'inFrameCount')"
+                class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono uppercase tracking-wider focus:ring-2 focus:ring-blue-600 outline-none">
+              <button type="button" onclick="startScanner('inNoFrame', 'inFrameCount')" class="bg-slate-800 text-white px-3.5 py-2 rounded-lg text-sm active:bg-slate-700 shadow-sm">
+                <i class="fa-solid fa-qrcode"></i>
+              </button>
+            </div>
+          </div>
 
-        <!-- RIWAYAT 5 INPUT TERAKHIR -->
-        <div class="history-card">
-          <h3>5 Input Terakhir (Spreadsheet)</h3>
-          <table class="history-table">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Area</label>
+              <select id="inArea" onchange="onAreaChange()" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-sm outline-none">
+                <option value="">Pilih Area</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Stall</label>
+              <select id="inStall" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-sm outline-none">
+                <option value="">Pilih Stall</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="suggestAlert" class="hidden text-xs bg-blue-50 text-blue-800 p-2.5 rounded-lg border border-blue-200">
+            <i class="fa-solid fa-circle-check text-blue-600 mr-1.5"></i>
+            <span id="suggestText">Saran stall otomatis terpilih.</span>
+          </div>
+
+          <button type="submit" id="btnSubmitIn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 rounded-lg shadow text-sm active:scale-98 transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-check"></i>
+            <span>Simpan Alokasi Unit In</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- History 5 Frame Terakhir IN -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
+            <i class="fa-solid fa-clock-rotate-left mr-1.5 text-blue-600"></i> 5 Frame Terakhir (IN)
+          </h3>
+          <span class="text-[10px] text-slate-400">Terbaru di atas</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
             <thead>
-              <tr>
-                <th>Frame</th>
-                <th>Stall</th>
-                <th>Scan Time Real</th>
-                <th>Dispatcher</th>
+              <tr class="text-slate-400 border-b border-slate-100">
+                <th class="py-1.5 font-medium">No Frame</th>
+                <th class="py-1.5 font-medium text-center">Stall</th>
+                <th class="py-1.5 font-medium">Dispatcher</th>
+                <th class="py-1.5 font-medium text-right">Waktu Kerja</th>
               </tr>
             </thead>
-            <tbody id="historyBody">
-              <tr>
-                <td colspan="4" style="text-align: center; color: #94a3b8;">Memuat data...</td>
-              </tr>
+            <tbody id="tableRecentIn" class="divide-y divide-slate-100 font-mono text-[11px]">
+              <tr><td colspan="4" class="py-3 text-center text-slate-400 font-sans">Memuat data riwayat...</td></tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
 
-        <div style="height: 70px;"></div>
-
-        <div class="footer-actions">
-          <button type="submit" id="btnSave" class="btn-submit" disabled>Simpan</button>
+    <!-- VIEW 2: UNIT OUT (PICK UNIT) -->
+    <section id="viewOut" class="hidden space-y-4">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center space-x-2 mb-4 border-b border-slate-100 pb-3">
+          <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></span>
+          <h2 class="font-bold text-slate-800 text-sm tracking-wide">PENGAMBILAN UNIT (PICK UNIT / OUT)</h2>
         </div>
-      </form>
+
+        <form id="formCheckOut" class="space-y-4" onsubmit="submitCheckOut(event)">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Dispatcher Pengambil</label>
+            <input type="text" id="outDispatcher" required placeholder="Nama pengambil unit" oninput="saveDispatcherName(this.value)"
+              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-semibold text-slate-600">Scan No Frame Keluar</label>
+              <span id="outFrameCount" class="text-[10px] text-slate-400 font-mono">0/17</span>
+            </div>
+            <div class="flex space-x-2">
+              <input type="text" id="outNoFrame" required maxlength="17" placeholder="Scan QR Frame..."
+                oninput="handleFrameInput(this, 'outFrameCount')"
+                class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono uppercase tracking-wider focus:ring-2 focus:ring-amber-500 outline-none">
+              <button type="button" onclick="startScanner('outNoFrame', 'outFrameCount')" class="bg-slate-800 text-white px-3.5 py-2 rounded-lg text-sm active:bg-slate-700 shadow-sm">
+                <i class="fa-solid fa-qrcode"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btnSubmitOut" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg shadow text-sm active:scale-98 transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Konfirmasi Unit Keluar (OUT)</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- History 5 Frame Terakhir OUT -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
+            <i class="fa-solid fa-clock-rotate-left mr-1.5 text-amber-600"></i> 5 Frame Terakhir (OUT)
+          </h3>
+          <span class="text-[10px] text-slate-400">Terbaru di atas</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-100">
+                <th class="py-1.5 font-medium">No Frame</th>
+                <th class="py-1.5 font-medium text-center">Stall Asal</th>
+                <th class="py-1.5 font-medium">Dispatcher</th>
+                <th class="py-1.5 font-medium text-right">Waktu Out</th>
+              </tr>
+            </thead>
+            <tbody id="tableRecentOut" class="divide-y divide-slate-100 font-mono text-[11px]">
+              <tr><td colspan="4" class="py-3 text-center text-slate-400 font-sans">Belum ada unit yang di-out.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: ACHIEVEMENT CHARTS -->
+    <section id="viewChart" class="hidden space-y-4">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <h2 class="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">Filter Periode</h2>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="text-slate-500 font-medium">Dari Tanggal:</label>
+            <input type="date" id="filterStart" class="w-full border rounded-lg p-1.5 mt-1 outline-none text-slate-700">
+          </div>
+          <div>
+            <label class="text-slate-500 font-medium">Sampai Tanggal:</label>
+            <input type="date" id="filterEnd" class="w-full border rounded-lg p-1.5 mt-1 outline-none text-slate-700">
+          </div>
+        </div>
+        <button onclick="loadAnalytics()" class="w-full mt-3 bg-slate-900 text-white text-xs font-semibold py-2 rounded-lg shadow active:scale-98 transition">
+          <i class="fa-solid fa-magnifying-glass mr-1"></i> Tampilkan Grafik
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <h3 class="font-bold text-xs text-slate-700 mb-2 flex items-center">
+          <i class="fa-solid fa-user-check text-blue-600 mr-1.5"></i> Achievement by Dispatcher
+        </h3>
+        <div class="relative h-56">
+          <canvas id="chartDispatcher"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <h3 class="font-bold text-xs text-slate-700 mb-2 flex items-center">
+          <i class="fa-solid fa-calendar-days text-indigo-600 mr-1.5"></i> Achievement by Date
+        </h3>
+        <div class="relative h-56">
+          <canvas id="chartDate"></canvas>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal QR Scanner Fullscreen Camera -->
+  <div id="scannerModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col justify-center items-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl">
+      <div class="p-3 bg-slate-900 text-white flex justify-between items-center">
+        <span class="text-xs font-bold tracking-wider"><i class="fa-solid fa-camera mr-2"></i>SCAN QR NO FRAME</span>
+        <button onclick="stopScanner()" class="text-slate-400 hover:text-white px-2 py-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div id="reader" class="w-full bg-black"></div>
+      <div class="p-3 bg-slate-100 text-center">
+        <p class="text-xs text-slate-600">Arahkan kamera ke QR Code (Format MHKE... 17 digit)</p>
+      </div>
     </div>
   </div>
 
-  <!-- HALAMAN 2: DASHBOARD / CHART -->
-  <div id="pageChart" class="view-page">
-    <header>
-      <h1>Achievement Dashboard</h1>
-      <button class="btn-chart" onclick="showPage('pageInput')">&#8592; Kembali</button>
-    </header>
-
-    <div class="container">
-      <div class="filter-box">
-        <div>
-          <label style="font-size: 0.75rem;">Start Date:</label>
-          <input type="date" id="startDate" onchange="updateCharts()" />
-        </div>
-        <div>
-          <label style="font-size: 0.75rem;">End Date:</label>
-          <input type="date" id="endDate" onchange="updateCharts()" />
-        </div>
-      </div>
-
-      <div class="chart-card">
-        <h3>Achievement Unit per Dispatcher (Sorted)</h3>
-        <canvas id="chartDispatcher"></canvas>
-      </div>
-
-      <div class="chart-card">
-        <h3>Total Unit per Hari Shift Kerja</h3>
-        <canvas id="chartDaily"></canvas>
-      </div>
-    </div>
-  </div>
+  <!-- Bottom Navigation Bar Mobile -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2 px-6 flex justify-around items-center z-40 shadow-lg">
+    <button onclick="switchTab('in')" id="tabIn" class="flex flex-col items-center text-xs font-medium nav-active">
+      <i class="fa-solid fa-square-parking text-lg mb-1"></i>
+      <span>Unit In</span>
+    </button>
+    <button onclick="switchTab('out')" id="tabOut" class="flex flex-col items-center text-xs font-medium text-slate-400">
+      <i class="fa-solid fa-truck-pickup text-lg mb-1"></i>
+      <span>Pick Unit</span>
+    </button>
+    <button onclick="switchTab('chart')" id="tabChart" class="flex flex-col items-center text-xs font-medium text-slate-400">
+      <i class="fa-solid fa-chart-line text-lg mb-1"></i>
+      <span>Achievement</span>
+    </button>
+  </nav>
 
   <script>
-    // === CONFIGURATION ===
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVaNOtKOYxpvwYe_0IhceKwfzSGvVzxCrS1gRxOamfS81yDEZXAKccK6joqTXwWDl6-Q/exec";
+    // MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
+    const API_URL = "https://script.google.com/macros/s/AKfycb.../exec";
 
-    let areaStallMap = {};
-    let stallInfoMap = {};
-    let stallOccupancy = {};
-    let existingFrames = [];
-    let allReportData = [];
-    let recentHistory = [];
+    let masterData = { areas: [], stalls: [], recentIn: [], recentOut: [] };
     let html5QrCode = null;
+    let activeInputId = null;
+    let activeCounterId = null;
+    let chart1 = null;
+    let chart2 = null;
 
-    let chartDispatcherInst = null;
-    let chartDailyInst = null;
+    // VALIDASI NO FRAME: Wajib MHKE dan 17 Digit
+    const VIN_REGEX = /^MHKE[A-Z0-9]{13}$/;
 
-    // === INITIALIZATION ===
-    window.onload = function() {
-      const savedDispatcher = localStorage.getItem("parking_dispatcher");
-      if (savedDispatcher) {
-        document.getElementById("dispatcher").value = savedDispatcher;
-      }
-
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedDispatcher();
+      setDefaultDates();
       fetchMasterData();
+    });
 
-      const now = new Date();
-      const defaultDateStr = formatDateToYYYYMMDD(now);
-      document.getElementById("startDate").value = defaultDateStr;
-      document.getElementById("endDate").value = defaultDateStr;
-    };
-
-    function fetchMasterData() {
-      showLoading(true);
-      fetch(SCRIPT_URL + "?action=getInitialData")
-        .then(res => res.json())
-        .then(data => {
-          showLoading(false);
-          if (data.status === "success") {
-            areaStallMap = data.areaStallMap;
-            stallInfoMap = data.stallInfoMap;
-            stallOccupancy = data.stallOccupancy;
-            existingFrames = data.existingFrames;
-            recentHistory = data.recentHistory || [];
-            
-            populateAreaDropdown();
-            renderHistory();
-          }
-        })
-        .catch(err => {
-          showLoading(false);
-          alert("Gagal mengambil master data: " + err);
-        });
+    // 1. Dispatcher Auto-Save di LocalStorage
+    function loadSavedDispatcher() {
+      const saved = localStorage.getItem('parking_dispatcher_name') || "";
+      if (saved) {
+        document.getElementById('inDispatcher').value = saved;
+        document.getElementById('outDispatcher').value = saved;
+      }
     }
 
-    function populateAreaDropdown() {
-      const areaSelect = document.getElementById("area");
-      areaSelect.innerHTML = '<option value="">-- Pilih Area --</option>';
-      Object.keys(areaStallMap).forEach(area => {
-        const opt = document.createElement("option");
+    function saveDispatcherName(val) {
+      localStorage.setItem('parking_dispatcher_name', val.trim());
+      // Sinkronkan kedua form jika user mengetik di salah satu
+      document.getElementById('inDispatcher').value = val;
+      document.getElementById('outDispatcher').value = val;
+    }
+
+    // 2. Format & Counter No Frame
+    function handleFrameInput(inputEl, counterId) {
+      inputEl.value = inputEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const count = inputEl.value.length;
+      const counterEl = document.getElementById(counterId);
+      counterEl.innerText = `${count}/17`;
+      
+      if (count === 17) {
+        if (inputEl.value.startsWith("MHKE")) {
+          counterEl.className = "text-[10px] text-emerald-600 font-mono font-bold";
+        } else {
+          counterEl.className = "text-[10px] text-red-600 font-mono font-bold";
+        }
+      } else {
+        counterEl.className = "text-[10px] text-slate-400 font-mono";
+      }
+    }
+
+    // 3. Tab Navigation
+    function switchTab(tab) {
+      ['viewIn', 'viewOut', 'viewChart'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      ['tabIn', 'tabOut', 'tabChart'].forEach(id => {
+        document.getElementById(id).className = "flex flex-col items-center text-xs font-medium text-slate-400";
+      });
+
+      if (tab === 'in') {
+        document.getElementById('viewIn').classList.remove('hidden');
+        document.getElementById('tabIn').className = "flex flex-col items-center text-xs font-medium nav-active";
+      } else if (tab === 'out') {
+        document.getElementById('viewOut').classList.remove('hidden');
+        document.getElementById('tabOut').className = "flex flex-col items-center text-xs font-medium nav-active";
+      } else if (tab === 'chart') {
+        document.getElementById('viewChart').classList.remove('hidden');
+        document.getElementById('tabChart').className = "flex flex-col items-center text-xs font-medium nav-active";
+        loadAnalytics();
+      }
+    }
+
+    // 4. Fetch Master & Recent History
+    async function fetchMasterData() {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "getInitialData" })
+        });
+        const json = await res.json();
+        if (json.success) {
+          masterData = json.data;
+          renderAreaDropdown();
+          renderRecentHistory(json.data.recentIn, json.data.recentOut);
+        }
+      } catch (e) {
+        console.error("Gagal load data:", e);
+      }
+    }
+
+    function renderAreaDropdown() {
+      const areaSelect = document.getElementById('inArea');
+      areaSelect.innerHTML = '<option value="">Pilih Area</option>';
+      masterData.areas.forEach(area => {
+        const opt = document.createElement('option');
         opt.value = area;
-        opt.textContent = area;
+        opt.textContent = "Area " + area;
         areaSelect.appendChild(opt);
       });
+      if (masterData.areas.length > 0) {
+        areaSelect.value = masterData.areas[0];
+        onAreaChange();
+      }
     }
 
     function onAreaChange() {
-      const selectedArea = document.getElementById("area").value;
-      const stallSelect = document.getElementById("stall");
-      
-      stallSelect.innerHTML = '<option value="">-- Pilih Stall --</option>';
+      const selectedArea = document.getElementById('inArea').value;
+      const stallSelect = document.getElementById('inStall');
+      stallSelect.innerHTML = '<option value="">Pilih Stall</option>';
+      if (!selectedArea) return;
 
-      if (selectedArea && areaStallMap[selectedArea]) {
-        areaStallMap[selectedArea].forEach(stall => {
-          const filled = stallOccupancy[stall] || 0;
-          const capacity = (stallInfoMap[stall] && stallInfoMap[stall].capacity) ? stallInfoMap[stall].capacity : 50;
-          const nextSequence = filled + 1;
+      const filtered = masterData.stalls.filter(s => s.area === selectedArea);
+      let suggested = null;
 
-          if (nextSequence <= capacity) {
-            const opt = document.createElement("option");
-            opt.value = stall;
-            opt.textContent = `${stall}-${nextSequence}`;
-            stallSelect.appendChild(opt);
-          }
-        });
-      }
-      validateForm();
-    }
+      filtered.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.stall;
+        opt.textContent = `${s.stall} (Sisa: ${s.availableSlots})`;
 
-    // === VALIDATION & DATE FORMATTING ===
-    function handleFrameInput() {
-      validateForm();
-    }
-
-    function validateForm() {
-      const dispatcher = document.getElementById("dispatcher").value.trim();
-      const frameNo = document.getElementById("frameNo").value.trim().toUpperCase();
-      const area = document.getElementById("area").value;
-      const stall = document.getElementById("stall").value;
-      const errorEl = document.getElementById("frameError");
-      const btnSave = document.getElementById("btnSave");
-
-      let isValid = true;
-      errorEl.style.display = "none";
-
-      if(dispatcher) {
-        localStorage.setItem("parking_dispatcher", dispatcher);
-      }
-
-      if (frameNo.length > 0) {
-        if (!frameNo.startsWith("MHKE")) {
-          errorEl.textContent = 'Nomor Frame harus diawali dengan "MHKE"';
-          errorEl.style.display = "block";
-          isValid = false;
-        } else if (frameNo.length !== 17) {
-          errorEl.textContent = `Nomor Frame harus berjumlah 17 karakter (Saat ini: ${frameNo.length} karakter)`;
-          errorEl.style.display = "block";
-          isValid = false;
-        } else if (existingFrames.includes(frameNo)) {
-          errorEl.textContent = "Nomor Frame sudah ada di database (Duplikat)!";
-          errorEl.style.display = "block";
-          isValid = false;
+        if (!s.isAvailable) {
+          opt.disabled = true;
+          opt.textContent += " [PENUH]";
+        } else if (!suggested) {
+          suggested = s.stall;
         }
-      } else {
-        isValid = false;
-      }
-
-      if (!dispatcher || !area || !stall) isValid = false;
-
-      btnSave.disabled = !isValid;
-      return isValid;
-    }
-
-    // Standard Normal Format: YYYY-MM-DD HH:mm:ss
-    function formatStandardDateTime(d) {
-      const pad = (n) => n.toString().padStart(2, '0');
-      const year = d.getFullYear();
-      const month = pad(d.getMonth() + 1);
-      const day = pad(d.getDate());
-      const hours = pad(d.getHours());
-      const minutes = pad(d.getMinutes());
-      const seconds = pad(d.getSeconds());
-
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    }
-
-    function formatDateToYYYYMMDD(d) {
-      const pad = (n) => n.toString().padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    }
-
-    function getScanTimeReal(d) {
-      return formatStandardDateTime(d);
-    }
-
-    function getScanTimeKerja(d) {
-      let workDate = new Date(d.getTime());
-      // Aturan shift kerja: Kurangi 1 hari jika dibawah jam 07:00
-      if (workDate.getHours() < 7) {
-        workDate.setDate(workDate.getDate() - 1);
-      }
-      return formatStandardDateTime(workDate);
-    }
-
-    // Format Tampilan History: DD/MM/YYYY HH:mm (Bersih tanpa GMT)
-    function cleanDisplayTime(timeStr) {
-      if (!timeStr) return "";
-      const d = new Date(timeStr);
-      if (isNaN(d.getTime())) {
-        // Fallback jika berupa teks string
-        return timeStr.replace(/GMT.*/, '').replace(/GTM.*/, '').trim();
-      }
-      const pad = (n) => n.toString().padStart(2, '0');
-      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-
-    // === QR SCANNER ===
-    function toggleScanner() {
-      const readerEl = document.getElementById("reader");
-      if (readerEl.style.display === "none") {
-        readerEl.style.display = "block";
-        html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 150 } },
-          (decodedText) => {
-            const cleanText = decodedText.trim().toUpperCase();
-            document.getElementById("frameNo").value = cleanText;
-            html5QrCode.stop().then(() => {
-              readerEl.style.display = "none";
-              validateForm();
-            });
-          },
-          (errorMessage) => { }
-        );
-      } else {
-        if (html5QrCode) {
-          html5QrCode.stop().then(() => {
-            readerEl.style.display = "none";
-          });
-        }
-      }
-    }
-
-    // === SUBMIT DATA ===
-    function submitForm() {
-      if (!validateForm()) return;
-
-      const now = new Date();
-      const realTimeStr = getScanTimeReal(now);
-      const workTimeStr = getScanTimeKerja(now);
-
-      const payload = {
-        frameNo: document.getElementById("frameNo").value.trim().toUpperCase(),
-        dispatcher: document.getElementById("dispatcher").value.trim(),
-        area: document.getElementById("area").value,
-        stall: document.getElementById("stall").value,
-        scanTimeReal: realTimeStr,
-        scanTimeKerja: workTimeStr
-      };
-
-      showLoading(true);
-
-      fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(res => {
-        showLoading(false);
-        if(res.status === "success") {
-          alert(res.message || "Data Berhasil Disimpan!");
-          document.getElementById("frameNo").value = "";
-          fetchMasterData();
-          onAreaChange();
-        } else {
-          alert("Error: " + res.message);
-        }
-      })
-      .catch(err => {
-        showLoading(false);
-        alert("Terjadi kesalahan pengiriman data: " + err);
+        stallSelect.appendChild(opt);
       });
+
+      if (suggested) {
+        stallSelect.value = suggested;
+        document.getElementById('suggestAlert').classList.remove('hidden');
+        document.getElementById('suggestText').innerText = `Rekomendasi otomatis: Stall ${suggested}`;
+      } else {
+        document.getElementById('suggestAlert').classList.add('hidden');
+      }
     }
 
-    // === RENDER HISTORY FROM SERVER DATA ===
-    function renderHistory() {
-      const tbody = document.getElementById("historyBody");
-      if (!recentHistory || recentHistory.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">Belum ada data</td></tr>';
+    // 5. Render History 5 Frame Terakhir
+    function renderRecentHistory(recentIn, recentOut) {
+      // Render IN
+      const tableIn = document.getElementById('tableRecentIn');
+      if (recentIn && recentIn.length > 0) {
+        tableIn.innerHTML = recentIn.map(item => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 font-bold text-slate-800">${item.noFrame}</td>
+            <td class="py-2 text-center"><span class="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">${item.stall}</span></td>
+            <td class="py-2 text-slate-600 truncate max-w-[80px]">${item.dispatcher}</td>
+            <td class="py-2 text-right text-slate-500 text-[10px]">${formatSimpleDate(item.scanTime)}</td>
+          </tr>
+        `).join('');
+      } else {
+        tableIn.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-slate-400 font-sans">Belum ada riwayat In.</td></tr>`;
+      }
+
+      // Render OUT
+      const tableOut = document.getElementById('tableRecentOut');
+      if (recentOut && recentOut.length > 0) {
+        tableOut.innerHTML = recentOut.map(item => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 font-bold text-slate-800">${item.noFrame}</td>
+            <td class="py-2 text-center"><span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">${item.stall}</span></td>
+            <td class="py-2 text-slate-600 truncate max-w-[80px]">${item.dispatcher}</td>
+            <td class="py-2 text-right text-slate-500 text-[10px]">${formatSimpleDate(item.scanTime)}</td>
+          </tr>
+        `).join('');
+      } else {
+        tableOut.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-slate-400 font-sans">Belum ada riwayat Out.</td></tr>`;
+      }
+    }
+
+    function formatSimpleDate(dStr) {
+      if (!dStr) return "-";
+      const parts = String(dStr).split(' ');
+      if (parts.length === 2) {
+        const timePart = parts[1].substring(0, 5); // Ambil HH:mm
+        const datePart = parts[0].substring(5);    // MM-DD
+        return `${datePart} ${timePart}`;
+      }
+      return dStr;
+    }
+
+    // 6. Submit Check In
+    async function submitCheckIn(e) {
+      e.preventDefault();
+      const noFrame = document.getElementById('inNoFrame').value.trim().toUpperCase();
+
+      if (!VIN_REGEX.test(noFrame)) {
+        alert("PERHATIAN:\nNo Frame wajib diawali 'MHKE' dan berjumlah tepat 17 digit alphanumeric!");
         return;
       }
 
-      tbody.innerHTML = recentHistory.map(item => `
-        <tr>
-          <td><strong>${item.frame}</strong></td>
-          <td>${item.stall}</td>
-          <td>${cleanDisplayTime(item.scanTimeReal)}</td>
-          <td>${item.dispatcher}</td>
-        </tr>
-      `).join('');
-    }
+      const btn = document.getElementById('btnSubmitIn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
-    // === NAVIGATION & CHART PAGE ===
-    function showPage(pageId) {
-      document.querySelectorAll('.view-page').forEach(el => el.classList.remove('active'));
-      document.getElementById(pageId).classList.add('active');
-    }
-
-    function openChartPage() {
-      const pwd = prompt("Masukkan Password untuk membuka Chart Dashboard:");
-      if (pwd === "2026") {
-        showPage("pageChart");
-        loadChartData();
-      } else if (pwd !== null) {
-        alert("Password Salah!");
-      }
-    }
-
-    function loadChartData() {
-      showLoading(true);
-      fetch(SCRIPT_URL + "?action=getReportData")
-        .then(res => res.json())
-        .then(res => {
-          showLoading(false);
-          if (res.status === "success") {
-            allReportData = res.data;
-            updateCharts();
-          } else {
-            alert("Gagal mengambil data laporan dari server.");
-          }
-        })
-        .catch(err => {
-          showLoading(false);
-          alert("Gagal membaca laporan data: " + err);
-        });
-    }
-
-    // === PARSING DATE TERSTANDAR UTK CHART ===
-    function parseToYYYYMMDD(timeStr) {
-      if (!timeStr) return null;
-      const d = new Date(timeStr);
-      if (!isNaN(d.getTime())) {
-        return formatDateToYYYYMMDD(d);
-      }
-      // Jika string format "YYYY-MM-DD HH:mm:ss"
-      if (typeof timeStr === 'string' && timeStr.length >= 10) {
-        return timeStr.substring(0, 10);
-      }
-      return null;
-    }
-
-    function updateCharts() {
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
-
-      if (!startDate || !endDate) return;
-
-      const filteredData = allReportData.filter(item => {
-        const formattedWorkDate = parseToYYYYMMDD(item.scanTimeKerja);
-        if (!formattedWorkDate) return false;
-        return formattedWorkDate >= startDate && formattedWorkDate <= endDate;
-      });
-
-      setTimeout(() => {
-        renderDispatcherChart(filteredData);
-        renderDailyChart(filteredData);
-      }, 50);
-    }
-
-    function renderDispatcherChart(data) {
-      const counts = {};
-      data.forEach(d => {
-        if (d.dispatcher) {
-          counts[d.dispatcher] = (counts[d.dispatcher] || 0) + 1;
+      const payload = {
+        action: "checkIn",
+        data: {
+          dispatcher: document.getElementById('inDispatcher').value,
+          noFrame: noFrame,
+          area: document.getElementById('inArea').value,
+          stall: document.getElementById('inStall').value
         }
+      };
+
+      try {
+        const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        const json = await res.json();
+        if (json.success) {
+          alert("BERHASIL: " + json.data.message);
+          document.getElementById('inNoFrame').value = "";
+          document.getElementById('inFrameCount').innerText = "0/17";
+          masterData = json.data;
+          renderAreaDropdown();
+          renderRecentHistory(json.data.recentIn, json.data.recentOut);
+        } else {
+          alert("GAGAL: " + json.error);
+        }
+      } catch (err) {
+        alert("Koneksi gagal. Periksa sinyal internet Anda.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan Alokasi Unit In';
+      }
+    }
+
+    // 7. Submit Check Out (Pick Unit)
+    async function submitCheckOut(e) {
+      e.preventDefault();
+      const noFrame = document.getElementById('outNoFrame').value.trim().toUpperCase();
+
+      if (!VIN_REGEX.test(noFrame)) {
+        alert("PERHATIAN:\nNo Frame wajib diawali 'MHKE' dan berjumlah tepat 17 digit alphanumeric!");
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitOut');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+
+      const payload = {
+        action: "checkOut",
+        data: {
+          dispatcher: document.getElementById('outDispatcher').value,
+          noFrame: noFrame
+        }
+      };
+
+      try {
+        const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        const json = await res.json();
+        if (json.success) {
+          alert("BERHASIL: " + json.data.message);
+          document.getElementById('outNoFrame').value = "";
+          document.getElementById('outFrameCount').innerText = "0/17";
+          masterData = json.data;
+          renderAreaDropdown();
+          renderRecentHistory(json.data.recentIn, json.data.recentOut);
+        } else {
+          alert("GAGAL: " + json.error);
+        }
+      } catch (err) {
+        alert("Koneksi gagal. Periksa sinyal internet Anda.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket"></i> Konfirmasi Unit Keluar (OUT)';
+      }
+    }
+
+    // 8. QR Code Scanner dengan Validasi Instan
+    function startScanner(inputId, counterId) {
+      activeInputId = inputId;
+      activeCounterId = counterId;
+      document.getElementById('scannerModal').classList.remove('hidden');
+
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 15, qrbox: { width: 240, height: 240 } },
+        (decodedText) => {
+          const cleanText = decodedText.trim().toUpperCase();
+          if (cleanText.length === 17 && cleanText.startsWith("MHKE")) {
+            document.getElementById(activeInputId).value = cleanText;
+            handleFrameInput(document.getElementById(activeInputId), activeCounterId);
+            if (navigator.vibrate) navigator.vibrate([100]);
+            stopScanner();
+          } else {
+            alert(`QR Terdeteksi: "${cleanText}"\nFormat TIDAK SESUAI! Wajib diawali MHKE dan 17 digit.`);
+          }
+        }
+      ).catch(() => {
+        alert("Tidak dapat mengakses kamera. Pastikan izin kamera aktif.");
+        stopScanner();
       });
+    }
 
-      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-      const labels = sorted.map(i => i[0]);
-      const values = sorted.map(i => i[1]);
+    function stopScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          document.getElementById('scannerModal').classList.add('hidden');
+        }).catch(() => {
+          document.getElementById('scannerModal').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('scannerModal').classList.add('hidden');
+      }
+    }
 
-      const ctx = document.getElementById("chartDispatcher").getContext("2d");
-      if (chartDispatcherInst) chartDispatcherInst.destroy();
+    // 9. Analytics Chart
+    function setDefaultDates() {
+      const today = new Date().toISOString().split('T')[0];
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      document.getElementById('filterStart').value = weekAgo;
+      document.getElementById('filterEnd').value = today;
+    }
 
-      chartDispatcherInst = new Chart(ctx, {
+    async function loadAnalytics() {
+      const startDate = document.getElementById('filterStart').value;
+      const endDate = document.getElementById('filterEnd').value;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "getAnalytics", startDate, endDate })
+        });
+        const json = await res.json();
+        if (json.success) renderCharts(json.data);
+      } catch (e) {
+        console.error("Gagal load chart:", e);
+      }
+    }
+
+    function renderCharts(data) {
+      const ctx1 = document.getElementById('chartDispatcher').getContext('2d');
+      if (chart1) chart1.destroy();
+      chart1 = new Chart(ctx1, {
         type: 'bar',
         data: {
-          labels: labels.length ? labels : ["Tidak ada data"],
+          labels: Object.keys(data.byDispatcher),
           datasets: [{
-            label: 'Total Unit',
-            data: values.length ? values : [0],
-            backgroundColor: '#2563eb'
+            label: 'Total Unit In',
+            data: Object.values(data.byDispatcher),
+            backgroundColor: '#1d4ed8',
+            borderRadius: 6
           }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
       });
-    }
 
-    function renderDailyChart(data) {
-      const counts = {};
-      data.forEach(d => {
-        const formattedWorkDate = parseToYYYYMMDD(d.scanTimeKerja);
-        const dateKey = formattedWorkDate || "Unknown";
-        counts[dateKey] = (counts[dateKey] || 0) + 1;
-      });
-
-      const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
-      const labels = sorted.map(i => i[0]);
-      const values = sorted.map(i => i[1]);
-
-      const ctx = document.getElementById("chartDaily").getContext("2d");
-      if (chartDailyInst) chartDailyInst.destroy();
-
-      chartDailyInst = new Chart(ctx, {
+      const ctx2 = document.getElementById('chartDate').getContext('2d');
+      if (chart2) chart2.destroy();
+      chart2 = new Chart(ctx2, {
         type: 'line',
         data: {
-          labels: labels.length ? labels : ["Tidak ada data"],
+          labels: Object.keys(data.byDate),
           datasets: [{
-            label: 'Total Unit/Hari',
-            data: values.length ? values : [0],
+            label: 'Total Unit In',
+            data: Object.values(data.byDate),
             borderColor: '#0f172a',
-            backgroundColor: '#1e3a8a',
-            fill: false,
-            tension: 0.1
+            backgroundColor: 'rgba(15, 23, 42, 0.08)',
+            fill: true,
+            tension: 0.3
           }]
         },
         options: {
           responsive: true,
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
       });
-    }
-
-    function showLoading(show) {
-      document.getElementById("loadingOverlay").style.display = show ? "flex" : "none";
     }
   </script>
 </body>
