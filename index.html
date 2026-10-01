@@ -16,7 +16,7 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans pb-24">
 
-  <!-- Header -->
+  <!-- Header Formal -->
   <header class="bg-slate-900 text-white px-5 py-3.5 shadow-md sticky top-0 z-30 flex items-center justify-between">
     <div class="flex items-center space-x-3">
       <div class="bg-blue-600 p-2 rounded-lg text-white">
@@ -53,7 +53,8 @@
               <label class="text-xs font-semibold text-slate-600">Nama Dispatcher</label>
               <span class="text-[10px] text-slate-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Otomatis tersimpan</span>
             </div>
-            <input type="text" id="inDispatcher" required placeholder="Ketik nama dispatcher" oninput="saveDispatcherName(this.value)"
+            <input type="text" id="inDispatcher" required placeholder="Ketik nama dispatcher" 
+              oninput="saveDispatcherName(this.value); validateInForm();"
               class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 outline-none">
           </div>
 
@@ -64,9 +65,9 @@
             </div>
             <div class="flex space-x-2">
               <input type="text" id="inNoFrame" required maxlength="17" placeholder="CONTOH: MHKE..."
-                oninput="handleFrameInput(this, 'inFrameCount')"
+                oninput="handleFrameInput(this, 'inFrameCount'); validateInForm();"
                 class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono uppercase tracking-wider focus:ring-2 focus:ring-blue-600 outline-none">
-              <button type="button" onclick="startScanner('inNoFrame', 'inFrameCount')" class="bg-slate-800 text-white px-3.5 py-2 rounded-lg text-sm active:bg-slate-700 shadow-sm">
+              <button type="button" onclick="startScanner('inNoFrame', 'inFrameCount', validateInForm)" class="bg-slate-800 text-white px-3.5 py-2 rounded-lg text-sm active:bg-slate-700 shadow-sm">
                 <i class="fa-solid fa-qrcode"></i>
               </button>
             </div>
@@ -75,25 +76,26 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Area</label>
-              <select id="inArea" onchange="onAreaChange()" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-sm outline-none font-medium">
+              <select id="inArea" onchange="onAreaChange(); validateInForm();" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-sm outline-none font-medium">
                 <option value="">Pilih Area</option>
               </select>
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Stall</label>
-              <select id="inStall" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-sm outline-none font-mono font-bold text-blue-700">
+              <select id="inStall" onchange="validateInForm()" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-sm outline-none font-mono font-bold text-blue-700">
                 <option value="">Pilih Stall</option>
               </select>
             </div>
           </div>
 
-          <!-- Alert Rekomendasi Format C001-3 -->
           <div id="suggestAlert" class="text-xs bg-blue-50 text-blue-800 p-2.5 rounded-lg border border-blue-200 flex items-center">
             <i class="fa-solid fa-circle-check text-blue-600 mr-2"></i>
             <span>Rekomendasi otomatis: <b id="suggestText" class="font-mono text-sm tracking-wide">C001-1</b></span>
           </div>
 
-          <button type="submit" id="btnSubmitIn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow text-sm active:scale-98 transition flex items-center justify-center space-x-2">
+          <!-- Tombol Simpan IN: Disabled saat syarat belum terpenuhi -->
+          <button type="submit" id="btnSubmitIn" disabled
+            class="w-full bg-slate-300 text-slate-500 cursor-not-allowed font-semibold py-2.5 rounded-lg shadow text-sm transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-check"></i>
             <span>Simpan Alokasi Unit In</span>
           </button>
@@ -137,7 +139,8 @@
         <form id="formCheckOut" class="space-y-4" onsubmit="submitCheckOut(event)">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Dispatcher Pengambil</label>
-            <input type="text" id="outDispatcher" required placeholder="Nama pengambil unit" oninput="saveDispatcherName(this.value)"
+            <input type="text" id="outDispatcher" required placeholder="Nama pengambil unit" 
+              oninput="saveDispatcherName(this.value); validateOutForm();"
               class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
           </div>
 
@@ -148,15 +151,17 @@
             </div>
             <div class="flex space-x-2">
               <input type="text" id="outNoFrame" required maxlength="17" placeholder="CONTOH: MHKE..."
-                oninput="handleFrameInput(this, 'outFrameCount')"
+                oninput="handleFrameInput(this, 'outFrameCount'); validateOutForm();"
                 class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono uppercase tracking-wider focus:ring-2 focus:ring-amber-500 outline-none">
-              <button type="button" onclick="startScanner('outNoFrame', 'outFrameCount')" class="bg-slate-800 text-white px-3.5 py-2 rounded-lg text-sm active:bg-slate-700 shadow-sm">
+              <button type="button" onclick="startScanner('outNoFrame', 'outFrameCount', validateOutForm)" class="bg-slate-800 text-white px-3.5 py-2 rounded-lg text-sm active:bg-slate-700 shadow-sm">
                 <i class="fa-solid fa-qrcode"></i>
               </button>
             </div>
           </div>
 
-          <button type="submit" id="btnSubmitOut" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg shadow text-sm active:scale-98 transition flex items-center justify-center space-x-2">
+          <!-- Tombol Simpan OUT: Disabled saat syarat belum terpenuhi -->
+          <button type="submit" id="btnSubmitOut" disabled
+            class="w-full bg-slate-300 text-slate-500 cursor-not-allowed font-semibold py-2.5 rounded-lg shadow text-sm transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-arrow-right-from-bracket"></i>
             <span>Konfirmasi Unit Keluar (OUT)</span>
           </button>
@@ -208,22 +213,36 @@
         </button>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-        <h3 class="font-bold text-xs text-slate-700 mb-2">Achievement by Dispatcher</h3>
-        <div class="relative h-56"><canvas id="chartDispatcher"></canvas></div>
+      <!-- Keterangan Legend Warna -->
+      <div class="flex items-center justify-center space-x-6 bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-semibold">
+        <div class="flex items-center space-x-1.5">
+          <span class="w-3.5 h-3.5 rounded bg-[#38bdf8] inline-block shadow-sm"></span>
+          <span class="text-slate-700">Unit In (Biru Muda)</span>
+        </div>
+        <div class="flex items-center space-x-1.5">
+          <span class="w-3.5 h-3.5 rounded bg-[#f87171] inline-block shadow-sm"></span>
+          <span class="text-slate-700">Unit Out (Merah Muda)</span>
+        </div>
       </div>
 
+      <!-- Chart 1: Dispatcher In vs Out -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <h3 class="font-bold text-xs text-slate-700 mb-2">Achievement by Dispatcher</h3>
+        <div class="relative h-60"><canvas id="chartDispatcher"></canvas></div>
+      </div>
+
+      <!-- Chart 2: Date In vs Out -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <h3 class="font-bold text-xs text-slate-700 mb-2">Achievement by Date</h3>
-        <div class="relative h-56"><canvas id="chartDate"></canvas></div>
+        <div class="relative h-60"><canvas id="chartDate"></canvas></div>
       </div>
     </section>
 
   </main>
 
-  <!-- MODAL SUKSES (STATUS BESAR & REMINDER K3 SOP) -->
-  <div id="modalSuccess" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl text-center border border-slate-100">
+  <!-- MODAL SUKSES (AUTO DISMISS TANPA KLIK) -->
+  <div id="modalSuccess" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl text-center border border-slate-100 transform transition-all scale-100">
       
       <!-- Nama Aplikasi Kecil -->
       <p class="text-[10px] font-bold text-slate-400 tracking-widest uppercase mb-1">PARKING ALLOCATION</p>
@@ -242,16 +261,17 @@
         <span id="modalFrame" class="text-xs text-slate-600 font-mono tracking-wide block">MHKE5EA...</span>
       </div>
 
-      <!-- Reminder Wajib APD & SOP -->
-      <div class="bg-amber-500 text-white rounded-xl p-2.5 mb-4 shadow flex items-center justify-center space-x-2">
+      <!-- Reminder K3 SOP -->
+      <div class="bg-amber-500 text-white rounded-xl p-2.5 shadow flex items-center justify-center space-x-2">
         <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
         <span class="text-xs font-black uppercase tracking-wider">Gunakan APD & Patuhi SOP</span>
       </div>
 
-      <!-- Tombol OK -->
-      <button onclick="closeSuccessModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl shadow active:scale-95 transition text-sm">
-        OK / Lanjut Scan
-      </button>
+      <!-- Indikator timer kecil auto close -->
+      <div class="mt-3 flex items-center justify-center space-x-1.5 text-[11px] text-slate-400">
+        <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+        <span>Menutup otomatis & siap scan berikutnya...</span>
+      </div>
     </div>
   </div>
 
@@ -289,14 +309,16 @@
 
   <script>
     // MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
-    const API_URL = "https://script.google.com/macros/s/AKfycbwD6NtF7Y_kUskkJ3nQHtXExyph6hVSU29GaZ25nYrYXbUfIGSBerR20Uh5Ya3ymbF6rg/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxxrmXzEwB11cJl0Uvio_okY1nUTtMK044knauCaEIumGJM2xqiTcZRgTwGV1y3zGuNJg/exec";
 
     let masterData = { areas: [], stalls: [], recentIn: [], recentOut: [], globalRecommended: null };
     let html5QrCode = null;
     let activeInputId = null;
     let activeCounterId = null;
+    let scanSuccessCallback = null;
     let chart1 = null;
     let chart2 = null;
+    let autoCloseTimer = null;
 
     const VIN_REGEX = /^MHKE[A-Z0-9]{13}$/;
 
@@ -304,6 +326,8 @@
       loadSavedDispatcher();
       setDefaultDates();
       fetchMasterData();
+      validateInForm();
+      validateOutForm();
     });
 
     function loadSavedDispatcher() {
@@ -318,6 +342,8 @@
       localStorage.setItem('parking_dispatcher_name', val.trim());
       document.getElementById('inDispatcher').value = val;
       document.getElementById('outDispatcher').value = val;
+      validateInForm();
+      validateOutForm();
     }
 
     function handleFrameInput(inputEl, counterId) {
@@ -334,6 +360,43 @@
         }
       } else {
         counterEl.className = "text-[10px] text-slate-400 font-mono";
+      }
+    }
+
+    // VALIDASI FORM IN -> ENABLE / DISABLE TOMBOL
+    function validateInForm() {
+      const disp = document.getElementById('inDispatcher').value.trim();
+      const frame = document.getElementById('inNoFrame').value.trim();
+      const area = document.getElementById('inArea').value;
+      const stall = document.getElementById('inStall').value;
+      const btn = document.getElementById('btnSubmitIn');
+
+      const isFrameValid = VIN_REGEX.test(frame);
+      const isStallValid = stall && !stall.includes("[PENUH]");
+
+      if (disp.length > 0 && isFrameValid && area && isStallValid) {
+        btn.disabled = false;
+        btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow text-sm active:scale-98 transition flex items-center justify-center space-x-2 cursor-pointer";
+      } else {
+        btn.disabled = true;
+        btn.className = "w-full bg-slate-300 text-slate-500 cursor-not-allowed font-semibold py-2.5 rounded-lg shadow text-sm transition flex items-center justify-center space-x-2";
+      }
+    }
+
+    // VALIDASI FORM OUT -> ENABLE / DISABLE TOMBOL
+    function validateOutForm() {
+      const disp = document.getElementById('outDispatcher').value.trim();
+      const frame = document.getElementById('outNoFrame').value.trim();
+      const btn = document.getElementById('btnSubmitOut');
+
+      const isFrameValid = VIN_REGEX.test(frame);
+
+      if (disp.length > 0 && isFrameValid) {
+        btn.disabled = false;
+        btn.className = "w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg shadow text-sm active:scale-98 transition flex items-center justify-center space-x-2 cursor-pointer";
+      } else {
+        btn.disabled = true;
+        btn.className = "w-full bg-slate-300 text-slate-500 cursor-not-allowed font-semibold py-2.5 rounded-lg shadow text-sm transition flex items-center justify-center space-x-2";
       }
     }
 
@@ -375,6 +438,8 @@
       masterData = data;
       renderAreaDropdown();
       renderRecentHistory(data.recentIn, data.recentOut);
+      validateInForm();
+      validateOutForm();
     }
 
     function renderAreaDropdown() {
@@ -387,7 +452,6 @@
         areaSelect.appendChild(opt);
       });
 
-      // Pilih Area Rekomendasi Pertama
       if (masterData.globalRecommended) {
         areaSelect.value = masterData.globalRecommended.area;
       } else if (masterData.areas.length > 0) {
@@ -400,7 +464,10 @@
       const selectedArea = document.getElementById('inArea').value;
       const stallSelect = document.getElementById('inStall');
       stallSelect.innerHTML = '<option value="">Pilih Stall</option>';
-      if (!selectedArea) return;
+      if (!selectedArea) {
+        validateInForm();
+        return;
+      }
 
       const filtered = masterData.stalls.filter(s => s.area === selectedArea);
       let autoTargetStall = null;
@@ -408,7 +475,7 @@
       filtered.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.stallCode;
-        opt.textContent = s.stallCode; // Format: C001-3 atau C001 [PENUH]
+        opt.textContent = s.stallCode;
 
         if (!s.isAvailable) {
           opt.disabled = true;
@@ -419,7 +486,6 @@
         stallSelect.appendChild(opt);
       });
 
-      // Set stall rekomendasi
       if (autoTargetStall) {
         stallSelect.value = autoTargetStall;
         document.getElementById('suggestAlert').classList.remove('hidden');
@@ -427,11 +493,10 @@
       } else {
         document.getElementById('suggestAlert').classList.add('hidden');
       }
+      validateInForm();
     }
 
-    // Render Riwayat 5 Data Terakhir
     function renderRecentHistory(recentIn, recentOut) {
-      // TABEL IN
       const tableIn = document.getElementById('tableRecentIn');
       if (recentIn && recentIn.length > 0) {
         tableIn.innerHTML = recentIn.map(item => `
@@ -446,7 +511,6 @@
         tableIn.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-slate-400">Belum ada riwayat In.</td></tr>`;
       }
 
-      // TABEL OUT
       const tableOut = document.getElementById('tableRecentOut');
       if (recentOut && recentOut.length > 0) {
         tableOut.innerHTML = recentOut.map(item => `
@@ -462,35 +526,36 @@
       }
     }
 
-    // Tampilkan Modal Notifikasi Besar
-    function showSuccessModal(title, sub, stall, frame) {
+    // NOTIFIKASI SUKSES OTOMATIS TERTUTUP (AUTO DISMISS)
+    function showAutoSuccessModal(title, sub, stall, frame, isOut = false) {
       document.getElementById('modalStatusTitle').innerText = title;
       document.getElementById('modalSubTitle').innerText = sub;
       document.getElementById('modalStall').innerText = stall;
       document.getElementById('modalFrame').innerText = frame;
       document.getElementById('modalSuccess').classList.remove('hidden');
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-    }
 
-    function closeSuccessModal() {
-      document.getElementById('modalSuccess').classList.add('hidden');
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      
+      // Muncul sebentar (1.8 detik), langsung kembali ke form awal
+      autoCloseTimer = setTimeout(() => {
+        document.getElementById('modalSuccess').classList.add('hidden');
+        if (isOut) {
+          switchTab('out');
+          document.getElementById('outNoFrame').focus();
+        } else {
+          switchTab('in');
+          document.getElementById('inNoFrame').focus();
+        }
+      }, 1800);
     }
 
     // Submit Check In
     async function submitCheckIn(e) {
       e.preventDefault();
       const noFrame = document.getElementById('inNoFrame').value.trim().toUpperCase();
-
-      if (!VIN_REGEX.test(noFrame)) {
-        alert("PERHATIAN:\nNo Frame wajib diawali 'MHKE' dan berjumlah tepat 17 digit!");
-        return;
-      }
-
       const stallChosen = document.getElementById('inStall').value;
-      if (!stallChosen || stallChosen.includes("[PENUH]")) {
-        alert("Pilih stall yang masih memiliki slot tersedia!");
-        return;
-      }
 
       const btn = document.getElementById('btnSubmitIn');
       btn.disabled = true;
@@ -502,7 +567,7 @@
           dispatcher: document.getElementById('inDispatcher').value,
           noFrame: noFrame,
           area: document.getElementById('inArea').value,
-          stall: stallChosen // Mengirimkan C001-3
+          stall: stallChosen
         }
       };
 
@@ -510,18 +575,17 @@
         const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
         const json = await res.json();
         if (json.success) {
-          showSuccessModal("ALOKASI BERHASIL", "Unit berhasil diparkirkan di yard", json.data.allocatedStall, json.data.noFrame);
           document.getElementById('inNoFrame').value = "";
           document.getElementById('inFrameCount').innerText = "0/17";
           applyDataState(json.data);
+          showAutoSuccessModal("ALOKASI BERHASIL", "Unit berhasil diparkirkan di yard", json.data.allocatedStall, json.data.noFrame, false);
         } else {
           alert("GAGAL: " + json.error);
         }
       } catch (err) {
-        alert("Kendala koneksi internet. Silakan coba lagi.");
+        alert("Kendala koneksi internet. Coba beberapa saat lagi.");
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan Alokasi Unit In';
+        validateInForm();
       }
     }
 
@@ -529,11 +593,6 @@
     async function submitCheckOut(e) {
       e.preventDefault();
       const noFrame = document.getElementById('outNoFrame').value.trim().toUpperCase();
-
-      if (!VIN_REGEX.test(noFrame)) {
-        alert("PERHATIAN:\nNo Frame wajib diawali 'MHKE' dan berjumlah tepat 17 digit!");
-        return;
-      }
 
       const btn = document.getElementById('btnSubmitOut');
       btn.disabled = true;
@@ -551,25 +610,25 @@
         const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
         const json = await res.json();
         if (json.success) {
-          showSuccessModal("PICK UNIT BERHASIL", "Unit berhasil keluar dari yard", json.data.allocatedStall, json.data.noFrame);
           document.getElementById('outNoFrame').value = "";
           document.getElementById('outFrameCount').innerText = "0/17";
           applyDataState(json.data);
+          showAutoSuccessModal("PICK UNIT BERHASIL", "Unit berhasil keluar dari yard", json.data.allocatedStall, json.data.noFrame, true);
         } else {
           alert("GAGAL: " + json.error);
         }
       } catch (err) {
-        alert("Kendala koneksi internet. Silakan coba lagi.");
+        alert("Kendala koneksi internet. Coba beberapa saat lagi.");
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket"></i> Konfirmasi Unit Keluar (OUT)';
+        validateOutForm();
       }
     }
 
-    // Scanner
-    function startScanner(inputId, counterId) {
+    // QR SCANNER
+    function startScanner(inputId, counterId, callback) {
       activeInputId = inputId;
       activeCounterId = counterId;
+      scanSuccessCallback = callback;
       document.getElementById('scannerModal').classList.remove('hidden');
 
       html5QrCode = new Html5Qrcode("reader");
@@ -581,10 +640,11 @@
           if (cleanText.length === 17 && cleanText.startsWith("MHKE")) {
             document.getElementById(activeInputId).value = cleanText;
             handleFrameInput(document.getElementById(activeInputId), activeCounterId);
+            if (scanSuccessCallback) scanSuccessCallback();
             if (navigator.vibrate) navigator.vibrate([100]);
             stopScanner();
           } else {
-            alert(`QR Terdeteksi: "${cleanText}"\nFormat TIDAK SESUAI! Wajib diawali MHKE dan berjumlah 17 digit.`);
+            alert(`QR Terdeteksi: "${cleanText}"\nFormat TIDAK SESUAI! Wajib diawali MHKE dan 17 digit.`);
           }
         }
       ).catch(() => {
@@ -606,7 +666,6 @@
       }
     }
 
-    // Filter & Chart
     function setDefaultDates() {
       const today = new Date().toISOString().split('T')[0];
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -626,51 +685,80 @@
         const json = await res.json();
         if (json.success) renderCharts(json.data);
       } catch (e) {
-        console.error("Gagal load chart:", e);
+        console.error("Gagal memuat grafik:", e);
       }
     }
 
+    // RENDER GRAFIK IN (BIRU MUDA) & OUT (MERAH MUDA)
     function renderCharts(data) {
+      // 1. Chart Dispatcher (2 Bar per Dispatcher)
+      const dispatchers = Object.keys(data.byDispatcher);
+      const dispDataIn = dispatchers.map(d => data.byDispatcher[d].in || 0);
+      const dispDataOut = dispatchers.map(d => data.byDispatcher[d].out || 0);
+
       const ctx1 = document.getElementById('chartDispatcher').getContext('2d');
       if (chart1) chart1.destroy();
       chart1 = new Chart(ctx1, {
         type: 'bar',
         data: {
-          labels: Object.keys(data.byDispatcher),
-          datasets: [{
-            label: 'Total Unit In',
-            data: Object.values(data.byDispatcher),
-            backgroundColor: '#2563eb',
-            borderRadius: 6
-          }]
+          labels: dispatchers,
+          datasets: [
+            {
+              label: 'Unit In',
+              data: dispDataIn,
+              backgroundColor: '#38bdf8', // Biru Muda
+              borderRadius: 4
+            },
+            {
+              label: 'Unit Out',
+              data: dispDataOut,
+              backgroundColor: '#f87171', // Merah Muda
+              borderRadius: 4
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: { legend: { position: 'top' } },
           scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
       });
 
+      // 2. Chart Date (2 Bar per Tanggal)
+      const dates = Object.keys(data.byDate).sort();
+      const dateLabels = dates.map(d => {
+        const parts = d.split('-');
+        return `${parts[2]}/${parts[1]}`; // Format DD/MM
+      });
+      const dateDataIn = dates.map(d => data.byDate[d].in || 0);
+      const dateDataOut = dates.map(d => data.byDate[d].out || 0);
+
       const ctx2 = document.getElementById('chartDate').getContext('2d');
       if (chart2) chart2.destroy();
       chart2 = new Chart(ctx2, {
-        type: 'line',
+        type: 'bar',
         data: {
-          labels: Object.keys(data.byDate),
-          datasets: [{
-            label: 'Total Unit In',
-            data: Object.values(data.byDate),
-            borderColor: '#0f172a',
-            backgroundColor: 'rgba(15, 23, 42, 0.08)',
-            fill: true,
-            tension: 0.3
-          }]
+          labels: dateLabels,
+          datasets: [
+            {
+              label: 'Unit In',
+              data: dateDataIn,
+              backgroundColor: '#38bdf8', // Biru Muda
+              borderRadius: 4
+            },
+            {
+              label: 'Unit Out',
+              data: dateDataOut,
+              backgroundColor: '#f87171', // Merah Muda
+              borderRadius: 4
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: { legend: { position: 'top' } },
           scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
       });
